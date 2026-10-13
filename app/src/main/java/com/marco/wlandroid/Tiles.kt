@@ -361,3 +361,24 @@ fun NotifSummaryTile(
         )
     }
 }
+
+// ---------- Tile fissa "+" ----------
+
+@Composable
+fun AddTile(size: TileSize) {
+    Column(
+        Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "+",
+            color = Color.White,
+            fontSize = if (size == TileSize.SMALL) 34.sp else 56.sp,
+            fontWeight = FontWeight.Light
+        )
+        if (size != TileSize.SMALL) {
+            Text("Aggiungi", color = Color.White, fontSize = 13.sp)
+        }
+    }
+}

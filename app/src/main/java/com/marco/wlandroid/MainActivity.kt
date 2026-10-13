@@ -98,6 +98,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var editing by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
+    var showAppPicker by remember { mutableStateOf(false) }
     var weather by remember { mutableStateOf(store.weather) }
     var weatherStatus by remember { mutableStateOf<String?>(null) }
     var weatherTick by remember { mutableIntStateOf(0) }
@@ -181,8 +182,9 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     }
 
     fun setTiles(l: List<Tile>) {
-        tiles = l
-        store.saveTiles(l)
+        val fixed = withAddTile(l)
+        tiles = fixed
+        store.saveTiles(fixed)
     }
 
     fun pin(app: AppInfo) {
@@ -191,6 +193,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     }
 
     fun removeTile(t: Tile) {
+        if (t.key == ADD_KEY) return
         if (t.key.startsWith("widget:")) {
             t.key.removePrefix("widget:").toIntOrNull()?.let { widgets.remove(it) }
         }
@@ -260,7 +263,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         onOpen = { launchApp(ctx, it) },
                         onLiveClick = { onLiveClick(it) },
                         onAddLive = { addLive(it) },
-                        onAddWidget = { showWidgetPicker = true }
+                        onAddWidget = { showWidgetPicker = true },
+                        onAddApp = { showAppPicker = true }
                     )
                 } else {
                     AppListScreen(
@@ -282,6 +286,16 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onDark = { dark = it; store.dark = it },
                 onNotifAccess = { openNotifAccess() },
                 onDismiss = { showSettings = false }
+            )
+        }
+        if (showAppPicker) {
+            AppPickerDialog(
+                apps = apps,
+                onPick = {
+                    showAppPicker = false
+                    pin(it)
+                },
+                onDismiss = { showAppPicker = false }
             )
         }
         if (showWidgetPicker) {

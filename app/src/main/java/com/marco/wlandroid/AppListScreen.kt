@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -200,4 +201,30 @@ private fun uninstall(ctx: Context, pkg: String) {
         )
     } catch (_: Exception) {
     }
+}
+
+@Composable
+fun AppPickerDialog(apps: List<AppInfo>, onPick: (AppInfo) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Annulla") } },
+        title = { Text("Aggiungi app") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                items(apps, key = { it.key }) { app ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(app) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(app.icon, app.label, Modifier.size(36.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(app.label, fontSize = 16.sp)
+                    }
+                }
+            }
+        }
+    )
 }

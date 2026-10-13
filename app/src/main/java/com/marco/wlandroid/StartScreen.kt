@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,10 +67,11 @@ fun StartScreen(
     onOpen: (AppInfo) -> Unit,
     onLiveClick: (String) -> Unit,
     onAddLive: (String) -> Unit,
-    onAddWidget: () -> Unit
+    onAddWidget: () -> Unit,
+    onAddApp: () -> Unit
 ) {
     val visible = tiles.filter {
-        it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
+        it.key == "sys:add" || it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
     }
     val packed = remember(visible) { packTiles(visible) }
     val placed = packed.first
@@ -78,6 +81,7 @@ fun StartScreen(
     val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var addMenuOpen by remember { mutableStateOf(false) }
     var resizeKey by remember { mutableStateOf<String?>(null) }
     var resizeW by remember { mutableIntStateOf(1) }
     var resizeH by remember { mutableIntStateOf(1) }
@@ -169,7 +173,8 @@ fun StartScreen(
                         } else {
                             Modifier.combinedClickable(
                                 onClick = {
-                                    if (app != null) onOpen(app) else onLiveClick(t.key)
+                                    if (t.key == "sys:add") addMenuOpen = true
+                                    else if (app != null) onOpen(app) else onLiveClick(t.key)
                                 },
                                 onLongClick = { onEdit(true) }
                             )
@@ -192,6 +197,7 @@ fun StartScreen(
                                 .then(interaction)
                         ) {
                             when {
+                                t.key == "sys:add" -> AddTile(t.size)
                                 t.key == "live:clock" -> ClockTile(t.size)
                                 t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
                                 t.key == "live:photos" -> PhotoTile(photos, t.size)
@@ -203,6 +209,25 @@ fun StartScreen(
                                     with(density) { r.height.toDp().value.toInt() }
                                 )
                                 app != null -> AppTile(app, t.size, notifs[app.pkg])
+                            }
+                            if (t.key == "sys:add") {
+                                DropdownMenu(expanded = addMenuOpen, onDismissRequest = { addMenuOpen = false }) {
+                                    listOf(
+                                        "Widget" to { onAddWidget() },
+                                        "Meteo" to { onAddLive("live:weather") },
+                                        "Foto" to { onAddLive("live:photos") },
+                                        "Notifiche" to { onAddLive("live:notif") },
+                                        "Aggiungi app" to { onAddApp() }
+                                    ).forEach { (label, action) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                addMenuOpen = false
+                                                action()
+                                            }
+                                        )
+                                    }
+                                }
                             }
                             if (editing && widgetId != null) {
                                 // intercetta i tocchi, così il widget non li "ruba" al trascinamento
@@ -217,7 +242,7 @@ fun StartScreen(
                                 )
                             }
                             if (editing) {
-                                Text(
+                                if (t.key != "sys:add") Text(
                                     "✕",
                                     color = Color.White,
                                     fontSize = 12.sp,
@@ -290,31 +315,6 @@ fun StartScreen(
                             .background(Color.White.copy(alpha = 0.18f))
                             .border(2.dp, Color.White)
                     )
-                }
-            }
-            if (editing) {
-                Row(
-                    Modifier
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    listOf(
-                        "＋ Widget" to { onAddWidget() },
-                        "＋ Meteo" to { onAddLive("live:weather") },
-                        "＋ Foto" to { onAddLive("live:photos") },
-                        "＋ Notifiche" to { onAddLive("live:notif") }
-                    ).forEach { (label, action) ->
-                        Text(
-                            label,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .background(accent)
-                                .clickable { action() }
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
-                        )
-                    }
                 }
             }
         }

@@ -31,6 +31,11 @@ data class AppInfo(val label: String, val pkg: String, val cls: String, val icon
 data class Placed(val idx: Int, val tile: Tile, val col: Int, val row: Int)
 
 const val COLUMNS = 4
+const val ADD_KEY = "sys:add"
+
+/** La tile "+" è sempre presente e non si può eliminare. */
+fun withAddTile(l: List<Tile>): List<Tile> =
+    if (l.any { it.key == ADD_KEY }) l else l + Tile(ADD_KEY, 1, 1)
 
 /** First-fit packing of tiles on a 4-column grid. Returns placed tiles and row count. */
 fun packTiles(tiles: List<Tile>): Pair<List<Placed>, Int> {
@@ -70,10 +75,10 @@ class Store(ctx: Context) {
     private val p = ctx.getSharedPreferences("wl", Context.MODE_PRIVATE)
 
     fun loadTiles(): List<Tile> {
-        val s = p.getString("tiles", null) ?: return emptyList()
+        val s = p.getString("tiles", null) ?: return withAddTile(emptyList())
         return try {
             val a = JSONArray(s)
-            (0 until a.length()).map {
+            withAddTile((0 until a.length()).map {
                 val o = a.getJSONObject(it)
                 if (o.has("w")) {
                     Tile(o.getString("k"), o.getInt("w").coerceIn(1, COLUMNS), o.getInt("h").coerceIn(1, 12))
@@ -81,9 +86,9 @@ class Store(ctx: Context) {
                     val sz = TileSize.valueOf(o.getString("s"))
                     Tile(o.getString("k"), sz.w, sz.h)
                 }
-            }
+            })
         } catch (e: Exception) {
-            emptyList()
+            withAddTile(emptyList())
         }
     }
 
