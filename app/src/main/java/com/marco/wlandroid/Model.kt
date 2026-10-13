@@ -9,7 +9,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class TileSize(val w: Int, val h: Int) {
-    SMALL(1, 1), MEDIUM(2, 2), WIDE(4, 2)
+    SMALL(1, 1), MEDIUM(2, 2), WIDE(4, 2), LARGE(4, 4)
+}
+
+fun nextSize(t: Tile): TileSize {
+    val all = TileSize.values().toList().filter { !(t.key.startsWith("widget:") && it == TileSize.SMALL) }
+    val i = all.indexOf(t.size)
+    return all[(i + 1) % all.size]
 }
 
 /** key = "pkg/class" for apps, "live:clock" for the live clock tile. */
@@ -86,6 +92,14 @@ class Store(ctx: Context) {
     var dark: Boolean
         get() = p.getBoolean("dark", true)
         set(v) = p.edit().putBoolean("dark", v).apply()
+
+    var weather: Weather?
+        get() = parseWeather(p.getString("weather", null))
+        set(v) = p.edit().putString("weather", v?.toJson()).apply()
+
+    var photos: List<String>
+        get() = (p.getString("photos", "") ?: "").split("\n").filter { it.isNotBlank() }
+        set(v) = p.edit().putString("photos", v.joinToString("\n")).apply()
 }
 
 fun loadApps(ctx: Context): List<AppInfo> {

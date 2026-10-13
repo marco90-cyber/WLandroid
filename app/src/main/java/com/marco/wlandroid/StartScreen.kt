@@ -1,17 +1,16 @@
 package com.marco.wlandroid
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -36,18 +34,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -57,15 +51,29 @@ fun StartScreen(
     apps: Map<String, AppInfo>,
     accent: Color,
     editing: Boolean,
+    notifs: Map<String, NotifInfo>,
+    notifConnected: Boolean,
+    weather: Weather?,
+    weatherStatus: String?,
+    photos: List<ImageBitmap>,
+    widgets: WidgetController,
     onEdit: (Boolean) -> Unit,
     onTiles: (List<Tile>) -> Unit,
-    onOpen: (AppInfo) -> Unit
+    onRemove: (Tile) -> Unit,
+    onOpen: (AppInfo) -> Unit,
+    onLiveClick: (String) -> Unit,
+    onAddLive: (String) -> Unit,
+    onAddWidget: () -> Unit
 ) {
-    val packed = remember(tiles) { packTiles(tiles) }
+    val visible = tiles.filter {
+        it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
+    }
+    val packed = remember(visible) { packTiles(visible) }
     val placed = packed.first
     val rows = packed.second
     val tilesNow by rememberUpdatedState(tiles)
     val placedNow by rememberUpdatedState(placed)
+    val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
@@ -74,7 +82,10 @@ fun StartScreen(
         Modifier
             .fillMaxSize()
             .pointerInput(editing) {
-                if (editing) detectTapGestures { onEdit(false) }
+                detectTapGestures(
+                    onTap = { if (editing) onEdit(false) },
+                    onLongPress = { if (!editing) onEdit(true) }
+                )
             }
     ) {
         val padPx = with(density) { 12.dp.toPx() }
@@ -92,7 +103,7 @@ fun StartScreen(
             return Rect(x, y, x + w, y + h)
         }
 
-        Box(
+        Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
@@ -102,11 +113,11 @@ fun StartScreen(
                     .fillMaxWidth()
                     .height(totalHeight)
             ) {
-                for (p in placed.filter { it.tile.key.startsWith("live:") || apps.containsKey(it.tile.key) }) {
+                for (p in placed) {
                     val t = p.tile
                     key(t.key) {
                         val app = apps[t.key]
-                        val isLive = t.key.startsWith("live:")
+                        val widgetId = if (t.key.startsWith("widget:")) t.key.removePrefix("widget:").toIntOrNull() else null
                         val r = rectOf(p)
                         val dragging = dragKey == t.key
                         val off = if (dragging) dragOffset else Offset.Zero
@@ -128,9 +139,10 @@ fun StartScreen(
                                             if (target != null) {
                                                 val l = tilesNow.toMutableList()
                                                 val from = l.indexOfFirst { it.key == t.key }
-                                                if (from >= 0) {
+                                                val to = l.indexOfFirst { it.key == target.tile.key }
+                                                if (from >= 0 && to >= 0) {
                                                     val item = l.removeAt(from)
-                                                    l.add(target.idx.coerceIn(0, l.size), item)
+                                                    l.add(to.coerceIn(0, l.size), item)
                                                     onTiles(l)
                                                 }
                                             }
@@ -150,7 +162,9 @@ fun StartScreen(
                             }
                         } else {
                             Modifier.combinedClickable(
-                                onClick = { if (app != null) onOpen(app) },
+                                onClick = {
+                                    if (app != null) onOpen(app) else onLiveClick(t.key)
+                                },
                                 onLongClick = { onEdit(true) }
                             )
                         }
@@ -171,10 +185,30 @@ fun StartScreen(
                                 .background(accent)
                                 .then(interaction)
                         ) {
-                            if (isLive) {
-                                ClockTile(t.size)
-                            } else if (app != null) {
-                                AppTile(app, t.size)
+                            when {
+                                t.key == "live:clock" -> ClockTile(t.size)
+                                t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
+                                t.key == "live:photos" -> PhotoTile(photos, t.size)
+                                t.key == "live:notif" -> NotifSummaryTile(notifConnected, notifs, appsByPkg, t.size)
+                                widgetId != null -> WidgetTile(
+                                    widgets,
+                                    widgetId,
+                                    with(density) { r.width.toDp().value.toInt() },
+                                    with(density) { r.height.toDp().value.toInt() }
+                                )
+                                app != null -> AppTile(app, t.size, notifs[app.pkg])
+                            }
+                            if (editing && widgetId != null) {
+                                // intercetta i tocchi, così il widget non li "ruba" al trascinamento
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            awaitPointerEventScope {
+                                                while (true) awaitPointerEvent()
+                                            }
+                                        }
+                                )
                             }
                             if (editing) {
                                 Text(
@@ -186,7 +220,7 @@ fun StartScreen(
                                         .padding(4.dp)
                                         .clip(CircleShape)
                                         .background(Color.Black.copy(alpha = 0.55f))
-                                        .clickable { onTiles(tilesNow.filter { it.key != t.key }) }
+                                        .clickable { onRemove(t) }
                                         .padding(horizontal = 8.dp, vertical = 5.dp)
                                 )
                                 Text(
@@ -199,7 +233,7 @@ fun StartScreen(
                                         .clip(CircleShape)
                                         .background(Color.Black.copy(alpha = 0.55f))
                                         .clickable {
-                                            val next = TileSize.values()[(t.size.ordinal + 1) % TileSize.values().size]
+                                            val next = nextSize(t)
                                             onTiles(tilesNow.map { if (it.key == t.key) it.copy(size = next) else it })
                                         }
                                         .padding(horizontal = 8.dp, vertical = 5.dp)
@@ -209,67 +243,31 @@ fun StartScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AppTile(app: AppInfo, size: TileSize) {
-    val density = LocalDensity.current
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val fraction = if (size == TileSize.SMALL) 0.6f else 0.45f
-        val iconSize = minOf(maxWidth, maxHeight) * fraction
-        Image(
-            bitmap = app.icon,
-            contentDescription = app.label,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(iconSize)
-        )
-        if (size != TileSize.SMALL) {
-            Text(
-                app.label,
-                color = Color.White,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .fillMaxWidth(0.8f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ClockTile(size: TileSize) {
-    val now by produceState(LocalDateTime.now()) {
-        while (true) {
-            value = LocalDateTime.now()
-            delay(10_000)
-        }
-    }
-    val time = now.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val date = now.format(DateTimeFormatter.ofPattern("EEEE d MMMM"))
-    if (size == TileSize.SMALL) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(time, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Light)
-        }
-    } else {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                time,
-                color = Color.White,
-                fontSize = if (size == TileSize.WIDE) 54.sp else 34.sp,
-                fontWeight = FontWeight.Light
-            )
-            Text(date, color = Color.White, fontSize = 14.sp, maxLines = 2)
+            if (editing) {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    listOf(
+                        "＋ Widget" to { onAddWidget() },
+                        "＋ Meteo" to { onAddLive("live:weather") },
+                        "＋ Foto" to { onAddLive("live:photos") },
+                        "＋ Notifiche" to { onAddLive("live:notif") }
+                    ).forEach { (label, action) ->
+                        Text(
+                            label,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .background(accent)
+                                .clickable { action() }
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -146,6 +146,7 @@ fun SettingsDialog(
     dark: Boolean,
     onAccent: (Color) -> Unit,
     onDark: (Boolean) -> Unit,
+    onNotifAccess: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -175,6 +176,8 @@ fun SettingsDialog(
                     Text("Tema scuro", Modifier.weight(1f))
                     Switch(checked = dark, onCheckedChange = onDark)
                 }
+                Spacer(Modifier.size(8.dp))
+                TextButton(onClick = onNotifAccess) { Text("Accesso alle notifiche") }
             }
         }
     )
