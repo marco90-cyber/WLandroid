@@ -127,16 +127,12 @@ class WidgetController(private val activity: Activity) {
 }
 
 /** Dimensione iniziale della tile in base alla dimensione minima richiesta dal widget. */
-fun sizeForProvider(info: AppWidgetProviderInfo, density: Float): TileSize {
+fun sizeForProvider(info: AppWidgetProviderInfo, density: Float): Pair<Int, Int> {
     val wDp = info.minWidth / density
     val hDp = info.minHeight / density
-    val cw = ((wDp + 30) / 70).toInt().coerceAtLeast(1)
-    val ch = ((hDp + 30) / 70).toInt().coerceAtLeast(1)
-    return when {
-        cw <= 2 && ch <= 2 -> TileSize.MEDIUM
-        ch <= 2 -> TileSize.WIDE
-        else -> TileSize.LARGE
-    }
+    val cw = ((wDp + 30) / 70).toInt().coerceIn(1, 4)
+    val ch = ((hDp + 30) / 70).toInt().coerceIn(1, 8)
+    return cw to ch
 }
 
 @Composable

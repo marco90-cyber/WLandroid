@@ -186,7 +186,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     }
 
     fun pin(app: AppInfo) {
-        if (tiles.none { it.key == app.key }) setTiles(tiles + Tile(app.key, TileSize.MEDIUM))
+        if (tiles.none { it.key == app.key }) setTiles(tiles + Tile(app.key, 2, 2))
         scope.launch { pager.animateScrollToPage(0) }
     }
 
@@ -208,7 +208,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
 
     fun addLive(key: String) {
         if (tiles.none { it.key == key }) {
-            setTiles(tiles + Tile(key, if (key == "live:weather") TileSize.WIDE else TileSize.MEDIUM))
+            setTiles(tiles + Tile(key, if (key == "live:weather") 4 else 2, 2))
         }
         if (key == "live:weather" && !hasLoc) locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
         if (key == "live:photos" && photoUris.isEmpty()) photoLauncher.launch(arrayOf("image/*"))
@@ -292,7 +292,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     showWidgetPicker = false
                     widgets.begin(info) { id ->
                         if (id != null) {
-                            setTiles(tiles + Tile("widget:$id", sizeForProvider(info, density)))
+                            val (cw, ch) = sizeForProvider(info, density)
+                            setTiles(tiles + Tile("widget:$id", cw, ch))
                         }
                     }
                 },

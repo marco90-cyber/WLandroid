@@ -12,14 +12,17 @@ enum class TileSize(val w: Int, val h: Int) {
     SMALL(1, 1), MEDIUM(2, 2), WIDE(4, 2), LARGE(4, 4)
 }
 
-fun nextSize(t: Tile): TileSize {
-    val all = TileSize.values().toList().filter { !(t.key.startsWith("widget:") && it == TileSize.SMALL) }
-    val i = all.indexOf(t.size)
-    return all[(i + 1) % all.size]
-}
 
 /** key = "pkg/class" for apps, "live:clock" for the live clock tile. */
-data class Tile(val key: String, val size: TileSize)
+data class Tile(val key: String, val w: Int, val h: Int) {
+    /** Classe di dimensione usata dai contenuti per scegliere font e layout. */
+    val size: TileSize
+        get() = when {
+            w == 1 && h == 1 -> TileSize.SMALL
+            w * h <= 4 -> TileSize.MEDIUM
+            else -> TileSize.WIDE
+        }
+}
 
 data class AppInfo(val label: String, val pkg: String, val cls: String, val icon: ImageBitmap) {
     val key: String get() = "$pkg/$cls"
@@ -41,14 +44,14 @@ fun packTiles(tiles: List<Tile>): Pair<List<Placed>, Int> {
         var done = false
         while (!done) {
             var c = 0
-            while (c + t.size.w <= COLUMNS && !done) {
-                ensure(r + t.size.h - 1)
+            while (c + t.w <= COLUMNS && !done) {
+                ensure(r + t.h - 1)
                 var free = true
-                for (dr in 0 until t.size.h) for (dc in 0 until t.size.w) {
+                for (dr in 0 until t.h) for (dc in 0 until t.w) {
                     if (occ[r + dr][c + dc]) free = false
                 }
                 if (free) {
-                    for (dr in 0 until t.size.h) for (dc in 0 until t.size.w) {
+                    for (dr in 0 until t.h) for (dc in 0 until t.w) {
                         occ[r + dr][c + dc] = true
                     }
                     out.add(Placed(i, t, c, r))
@@ -67,21 +70,26 @@ class Store(ctx: Context) {
     private val p = ctx.getSharedPreferences("wl", Context.MODE_PRIVATE)
 
     fun loadTiles(): List<Tile> {
-        val s = p.getString("tiles", null) ?: return listOf(Tile("live:clock", TileSize.WIDE))
+        val s = p.getString("tiles", null) ?: return emptyList()
         return try {
             val a = JSONArray(s)
             (0 until a.length()).map {
                 val o = a.getJSONObject(it)
-                Tile(o.getString("k"), TileSize.valueOf(o.getString("s")))
+                if (o.has("w")) {
+                    Tile(o.getString("k"), o.getInt("w").coerceIn(1, COLUMNS), o.getInt("h").coerceIn(1, 12))
+                } else {
+                    val sz = TileSize.valueOf(o.getString("s"))
+                    Tile(o.getString("k"), sz.w, sz.h)
+                }
             }
         } catch (e: Exception) {
-            listOf(Tile("live:clock", TileSize.WIDE))
+            emptyList()
         }
     }
 
     fun saveTiles(list: List<Tile>) {
         val a = JSONArray()
-        list.forEach { a.put(JSONObject().put("k", it.key).put("s", it.size.name)) }
+        list.forEach { a.put(JSONObject().put("k", it.key).put("w", it.w).put("h", it.h)) }
         p.edit().putString("tiles", a.toString()).apply()
     }
 

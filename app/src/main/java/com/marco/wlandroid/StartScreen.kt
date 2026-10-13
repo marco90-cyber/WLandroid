@@ -2,6 +2,7 @@ package com.marco.wlandroid
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -76,6 +78,9 @@ fun StartScreen(
     val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var resizeKey by remember { mutableStateOf<String?>(null) }
+    var resizeW by remember { mutableIntStateOf(1) }
+    var resizeH by remember { mutableIntStateOf(1) }
     val density = LocalDensity.current
 
     BoxWithConstraints(
@@ -98,8 +103,8 @@ fun StartScreen(
         fun rectOf(p: Placed): Rect {
             val x = padPx + p.col * (cellPx + gapPx)
             val y = padPx + p.row * (cellPx + gapPx)
-            val w = p.tile.size.w * cellPx + (p.tile.size.w - 1) * gapPx
-            val h = p.tile.size.h * cellPx + (p.tile.size.h - 1) * gapPx
+            val w = p.tile.w * cellPx + (p.tile.w - 1) * gapPx
+            val h = p.tile.h * cellPx + (p.tile.h - 1) * gapPx
             return Rect(x, y, x + w, y + h)
         }
 
@@ -121,6 +126,7 @@ fun StartScreen(
                         val r = rectOf(p)
                         val dragging = dragKey == t.key
                         val off = if (dragging) dragOffset else Offset.Zero
+                        val curTile by rememberUpdatedState(t)
 
                         val interaction = if (editing) {
                             Modifier.pointerInput(t.key, cellPx) {
@@ -232,15 +238,58 @@ fun StartScreen(
                                         .padding(4.dp)
                                         .clip(CircleShape)
                                         .background(Color.Black.copy(alpha = 0.55f))
-                                        .clickable {
-                                            val next = nextSize(t)
-                                            onTiles(tilesNow.map { if (it.key == t.key) it.copy(size = next) else it })
+                                        .pointerInput(t.key, cellPx) {
+                                            var acc = Offset.Zero
+                                            val step = cellPx + gapPx
+                                            detectDragGestures(
+                                                onDragStart = {
+                                                    acc = Offset.Zero
+                                                    resizeKey = t.key
+                                                    resizeW = curTile.w
+                                                    resizeH = curTile.h
+                                                },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    acc += amount
+                                                    resizeW = ((curTile.w * step + acc.x) / step).roundToInt()
+                                                        .coerceIn(1, COLUMNS)
+                                                    resizeH = ((curTile.h * step + acc.y) / step).roundToInt()
+                                                        .coerceIn(1, 12)
+                                                },
+                                                onDragEnd = {
+                                                    val nw = resizeW
+                                                    val nh = resizeH
+                                                    onTiles(
+                                                        tilesNow.map {
+                                                            if (it.key == t.key) it.copy(w = nw, h = nh) else it
+                                                        }
+                                                    )
+                                                    resizeKey = null
+                                                },
+                                                onDragCancel = { resizeKey = null }
+                                            )
                                         }
-                                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                                        .padding(horizontal = 11.dp, vertical = 9.dp)
                                 )
                             }
                         }
                     }
+                }
+                // anteprima della nuova dimensione mentre si trascina la maniglia
+                val rk = resizeKey
+                val me = if (rk != null) placed.firstOrNull { it.tile.key == rk } else null
+                if (me != null) {
+                    val r0 = rectOf(me)
+                    val pw = resizeW * cellPx + (resizeW - 1) * gapPx
+                    val ph = resizeH * cellPx + (resizeH - 1) * gapPx
+                    Box(
+                        Modifier
+                            .offset { IntOffset(r0.left.roundToInt(), r0.top.roundToInt()) }
+                            .size(with(density) { pw.toDp() }, with(density) { ph.toDp() })
+                            .zIndex(2f)
+                            .background(Color.White.copy(alpha = 0.18f))
+                            .border(2.dp, Color.White)
+                    )
                 }
             }
             if (editing) {
