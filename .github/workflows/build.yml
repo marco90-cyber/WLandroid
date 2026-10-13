@@ -26,7 +26,7 @@ jobs:
           gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            grep -E "^e: |What went wrong" -A4 build.log | head -40 | while IFS= read -r l; do echo "::error::${l}"; done
+            grep -E "^e: |What went wrong|Caused by|Unsupported|Error in|ERROR" -A2 build.log | head -60 | while IFS= read -r l; do echo "::error::${l}"; done
           fi
           exit $status
 
