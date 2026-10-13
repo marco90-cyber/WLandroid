@@ -102,12 +102,11 @@ fun StartScreen(
                     .fillMaxWidth()
                     .height(totalHeight)
             ) {
-                for (p in placed) {
+                for (p in placed.filter { it.tile.key.startsWith("live:") || apps.containsKey(it.tile.key) }) {
                     val t = p.tile
                     key(t.key) {
                         val app = apps[t.key]
                         val isLive = t.key.startsWith("live:")
-                        if (!isLive && app == null) return@key
                         val r = rectOf(p)
                         val dragging = dragKey == t.key
                         val off = if (dragging) dragOffset else Offset.Zero
