@@ -302,12 +302,16 @@ class Store(ctx: Context) {
 
     /** 0 = sistema, 1 = verticale, 2 = orizzontale */
     var orientation: Int
-        get() = p.getInt("orientation", 0)
+        get() = p.getInt("orientation", 1)
         set(v) = p.edit().putInt("orientation", v).apply()
 
     var landscapeFill: Boolean
         get() = p.getBoolean("landscapeFill", true)
         set(v) = p.edit().putBoolean("landscapeFill", v).apply()
+
+    var appGrid: Boolean
+        get() = p.getBoolean("appGrid", false)
+        set(v) = p.edit().putBoolean("appGrid", v).apply()
 
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)

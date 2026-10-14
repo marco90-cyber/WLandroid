@@ -32,6 +32,9 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.ViewList
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material3.RadioButton
 import androidx.compose.material.icons.outlined.Tune
@@ -112,6 +115,8 @@ fun HomeOptionsScreen(
     radius: Int,
     orientation: Int,
     onOrientation: (Int) -> Unit,
+    appGrid: Boolean,
+    onAppGrid: (Boolean) -> Unit,
     landscapeFill: Boolean,
     onLandscapeFill: (Boolean) -> Unit,
     onRounded: (Boolean) -> Unit,
@@ -135,6 +140,7 @@ fun HomeOptionsScreen(
         "live" -> "Tile dinamica"
         "style" -> "Dimensioni e stile"
         "gest" -> "Tasti e gesture"
+        "apps" -> "Cassetto app"
         "info" -> "Informazioni"
         else -> "Opzioni home"
     }
@@ -228,6 +234,7 @@ fun HomeOptionsScreen(
                     OptRow(Icons.Outlined.Tune, "Comportamento e interfaccia", null, { page = "ui" })
                     OptRow(Icons.Outlined.Notifications, "Tile dinamica", null, { page = "live" })
                     OptRow(Icons.Outlined.Palette, "Dimensioni e stile", null, { page = "style" })
+                    OptRow(Icons.Outlined.Apps, "Cassetto app", null, { page = "apps" })
                     OptRow(Icons.Outlined.Gesture, "Tasti e gesture", null, { page = "gest" })
                     OptRow(Icons.Outlined.Info, "Informazioni", null, { page = "info" })
                 }
@@ -325,6 +332,16 @@ fun HomeOptionsScreen(
                     }
                     Spacer(Modifier.height(12.dp))
                     OptRow(Icons.Outlined.RestartAlt, "Ripristina Start predefinita", null, onReset)
+                }
+                "apps" -> {
+                    listOf("Lista" to false, "Griglia" to true).forEach { (label, v) ->
+                        OptRow(
+                            if (v) Icons.Outlined.GridView else Icons.Outlined.ViewList,
+                            label,
+                            if (v) "Icone in griglia con il nome sotto" else "Icone in elenco con il nome a fianco",
+                            { onAppGrid(v) }
+                        ) { RadioButton(selected = appGrid == v, onClick = { onAppGrid(v) }) }
+                    }
                 }
                 "gest" -> {
                     OptRow(

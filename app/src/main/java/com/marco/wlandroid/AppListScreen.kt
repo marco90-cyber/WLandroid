@@ -22,6 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.ViewList
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.ui.draw.clip
@@ -63,6 +66,8 @@ fun AppListScreen(
     fg: Color,
     onOpen: (AppInfo) -> Unit,
     onPin: (AppInfo) -> Unit,
+    grid: Boolean,
+    onGrid: (Boolean) -> Unit,
     onSettings: () -> Unit
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -97,12 +102,31 @@ fun AppListScreen(
     val barIcon = Color(0xFFE3E3E8)
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp)
-        ) {
-            items(shown, key = { it.key }) { app ->
-                Box {
+        val cell: @Composable (AppInfo) -> Unit = { app ->
+            Box {
+                if (grid) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { onOpen(app) },
+                                onLongClick = { menuFor = app.key }
+                            )
+                            .padding(horizontal = 4.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(app.icon, app.label, Modifier.size(56.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            app.label,
+                            color = fg,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -117,21 +141,39 @@ fun AppListScreen(
                         Spacer(Modifier.width(24.dp))
                         Text(app.label, color = fg, fontSize = 20.sp)
                     }
-                    DropdownMenu(expanded = menuFor == app.key, onDismissRequest = { menuFor = null }) {
-                        DropdownMenuItem(
-                            text = { Text("Aggiungi alla Start") },
-                            onClick = { menuFor = null; onPin(app) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Info app") },
-                            onClick = { menuFor = null; openAppInfo(ctx, app.pkg) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Disinstalla") },
-                            onClick = { menuFor = null; uninstall(ctx, app.pkg) }
-                        )
-                    }
                 }
+                DropdownMenu(expanded = menuFor == app.key, onDismissRequest = { menuFor = null }) {
+                    DropdownMenuItem(
+                        text = { Text("Aggiungi alla Start") },
+                        onClick = { menuFor = null; onPin(app) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Info app") },
+                        onClick = { menuFor = null; openAppInfo(ctx, app.pkg) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Disinstalla") },
+                        onClick = { menuFor = null; uninstall(ctx, app.pkg) }
+                    )
+                }
+            }
+        }
+        if (grid) {
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(84.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = 8.dp, end = 8.dp, top = 8.dp, bottom = 96.dp
+                )
+            ) {
+                items(shown, key = { it.key }) { app -> cell(app) }
+            }
+        } else {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp)
+            ) {
+                items(shown, key = { it.key }) { app -> cell(app) }
             }
         }
 
@@ -192,6 +234,20 @@ fun AppListScreen(
                             )
                         }
                     }
+                }
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { onGrid(!grid) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        if (grid) androidx.compose.material.icons.Icons.Outlined.ViewList
+                        else androidx.compose.material.icons.Icons.Outlined.GridView,
+                        if (grid) "Vista a lista" else "Vista a griglia",
+                        tint = barIcon
+                    )
                 }
                 Box(
                     Modifier

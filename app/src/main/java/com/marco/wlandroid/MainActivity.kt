@@ -113,6 +113,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var locked by remember { mutableStateOf(store.locked) }
     var orient by remember { mutableIntStateOf(store.orientation) }
     var landFill by remember { mutableStateOf(store.landscapeFill) }
+    var appGrid by remember { mutableStateOf(store.appGrid) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -514,6 +515,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         fg = fg,
                         onOpen = { launchApp(ctx, it) },
                         onPin = { pin(it) },
+                        grid = appGrid,
+                        onGrid = { appGrid = it; store.appGrid = it },
                         onSettings = { showSettings = true }
                     )
                 }
@@ -567,6 +570,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 pinch = pinchOn,
                 rounded = rounded,
                 radius = radius,
+                appGrid = appGrid,
+                onAppGrid = { appGrid = it; store.appGrid = it },
                 landscapeFill = landFill,
                 onLandscapeFill = { landFill = it; store.landscapeFill = it },
                 orientation = orient,
