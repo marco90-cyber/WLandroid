@@ -31,6 +31,10 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.OpenWith
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -223,6 +227,32 @@ fun LayoutOverview(
                 onToggleLock
             )
         }
+    }
+}
+
+/** Menu che si apre con la pressione lunga sul tile "+". */
+@Composable
+fun HomeMenuDialog(
+    locked: Boolean,
+    onOptions: () -> Unit,
+    onSystem: () -> Unit,
+    onWallpaper: () -> Unit,
+    onLock: () -> Unit,
+    onMove: () -> Unit,
+    onReset: () -> Unit,
+    onInfo: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Sheet("MENU", onDismiss) {
+        SheetRow(Icons.Outlined.Tune, "Opzioni home", onOptions)
+        SheetRow(Icons.Outlined.Settings, "Impostazioni di sistema", onSystem)
+        SheetRow(Icons.Outlined.Wallpaper, "Sfondo", onWallpaper)
+        SheetRow(if (locked) Icons.Outlined.LockOpen else Icons.Outlined.Lock, if (locked) "Sblocca modifiche" else "Blocca modifiche", onLock)
+        if (!locked) {
+            SheetRow(Icons.Outlined.OpenWith, "Sposta tile", onMove)
+            SheetRow(Icons.Outlined.RestartAlt, "Reimposta", onReset)
+        }
+        SheetRow(Icons.Outlined.Info, "Informazioni", onInfo)
     }
 }
 

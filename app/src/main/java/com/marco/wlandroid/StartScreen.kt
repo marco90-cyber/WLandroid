@@ -91,6 +91,8 @@ fun StartScreen(
     accent: Color,
     editing: Boolean,
     locked: Boolean,
+    moveMode: Boolean,
+    onPlusMenu: () -> Unit,
     fill: Boolean,
     corner: Int,
     notifs: Map<String, NotifInfo>,
@@ -301,7 +303,7 @@ fun StartScreen(
                         val dimmed = sel != null && !isSel
 
                         val interaction = when {
-                            isSel -> Modifier.pointerInput(t.key, cellPx) {
+                            isSel || moveMode -> Modifier.pointerInput(t.key, cellPx, moveMode) {
                                 detectDragGestures(
                                     onDragStart = {
                                         dragKey = t.key
@@ -353,7 +355,9 @@ fun StartScreen(
                                         else -> onLiveClick(k)
                                     }
                                 },
-                                onLongClick = { select(t.key) }
+                                onLongClick = {
+                                    if (t.key == ADD_KEY) onPlusMenu() else select(t.key)
+                                }
                             )
                         }
 
@@ -424,7 +428,7 @@ fun StartScreen(
                                 )
                                 shownApp != null -> AppTile(shownApp, t.size, notifs[shownApp.pkg])
                             }
-                            if (sel != null && widgetId != null) {
+                            if ((sel != null || moveMode) && widgetId != null) {
                                 // intercetta i tocchi, così il widget non li "ruba" a selezione e trascinamento
                                 Box(
                                     Modifier

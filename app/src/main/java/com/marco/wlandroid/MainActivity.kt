@@ -42,6 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -114,6 +118,9 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var orient by remember { mutableIntStateOf(store.orientation) }
     var landFill by remember { mutableStateOf(store.landscapeFill) }
     var appGrid by remember { mutableStateOf(store.appGrid) }
+    var showMenu by remember { mutableStateOf(false) }
+    var moveMode by remember { mutableStateOf(false) }
+    var showInfo by remember { mutableStateOf(false) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -190,6 +197,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             pager.animateScrollToPage(0)
         }
     }
+    BackHandler(moveMode) { moveMode = false }
     BackHandler(showLayout) { showLayout = false }
     BackHandler(!showLayout && (editing || pager.currentPage == 1)) {
         if (editing) editing = false else scope.launch { pager.animateScrollToPage(0) }
@@ -450,7 +458,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
         ) {
             HorizontalPager(
                 state = pager,
-                userScrollEnabled = !editing,
+                userScrollEnabled = !editing && !moveMode,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 if (page == 0) {
@@ -467,6 +475,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         accent = accent,
                         editing = editing,
                         locked = locked,
+                        moveMode = moveMode,
+                        onPlusMenu = { showMenu = true },
                         fill = landFill,
                         corner = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0,
                         notifs = notifs,
@@ -521,6 +531,52 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     )
                 }
             }
+
+            if (moveMode) {
+                Box(
+                    Modifier
+                        .align(androidx.compose.ui.Alignment.BottomCenter)
+                        .padding(24.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
+                        .background(Color(0xFF15171C))
+                        .clickable { moveMode = false }
+                        .padding(horizontal = 32.dp, vertical = 14.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text("Fine", color = Color.White, fontSize = androidx.compose.ui.unit.TextUnit(20f, androidx.compose.ui.unit.TextUnitType.Sp))
+                }
+            }
+        }
+        if (showMenu) {
+            HomeMenuDialog(
+                locked = locked,
+                onOptions = { showMenu = false; showSettings = true },
+                onSystem = { showMenu = false; openSettings(ctx, Settings.ACTION_SETTINGS) },
+                onWallpaper = { showMenu = false; showWallpaper = true },
+                onLock = {
+                    showMenu = false
+                    locked = !locked
+                    store.locked = locked
+                    editing = false
+                },
+                onMove = { showMenu = false; editing = false; moveMode = true },
+                onReset = { showMenu = false; showResetConfirm = true },
+                onInfo = { showMenu = false; showInfo = true },
+                onDismiss = { showMenu = false }
+            )
+        }
+        if (showInfo) {
+            val ver = try {
+                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+            AlertDialog(
+                onDismissRequest = { showInfo = false },
+                title = { Text("WLandroid") },
+                text = { Text("Versione $ver\nLauncher in stile Windows Phone") },
+                confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } }
+            )
         }
         if (showLayout) {
             LayoutOverview(
