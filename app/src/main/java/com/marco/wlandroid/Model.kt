@@ -297,6 +297,11 @@ class Store(ctx: Context) {
         get() = p.getBoolean("pinch", true)
         set(v) = p.edit().putBoolean("pinch", v).apply()
 
+    /** 0 = sistema, 1 = verticale, 2 = orizzontale */
+    var orientation: Int
+        get() = p.getInt("orientation", 0)
+        set(v) = p.edit().putInt("orientation", v).apply()
+
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)
         set(v) = p.edit().putBoolean("rounded", v).apply()

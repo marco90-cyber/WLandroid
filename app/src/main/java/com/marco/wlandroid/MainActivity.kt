@@ -111,6 +111,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var dark by remember { mutableStateOf(store.dark) }
     var editing by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(store.locked) }
+    var orient by remember { mutableIntStateOf(store.orientation) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -166,6 +167,14 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     wall = data.bitmap(WALL_FILE)
                 }
             }
+        }
+    }
+
+    LaunchedEffect(orient) {
+        (ctx as Activity).requestedOrientation = when (orient) {
+            1 -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            2 -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -556,6 +565,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 pinch = pinchOn,
                 rounded = rounded,
                 radius = radius,
+                orientation = orient,
+                onOrientation = { orient = it; store.orientation = it },
                 onRounded = { rounded = it; store.rounded = it },
                 onRadius = { radius = it; store.radius = it },
                 isDefault = remember(resumeTick, showSettings) { isDefaultHome(ctx) },

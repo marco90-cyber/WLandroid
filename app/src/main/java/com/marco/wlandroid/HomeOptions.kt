@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.ScreenRotation
+import androidx.compose.material3.RadioButton
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
@@ -108,6 +110,8 @@ fun HomeOptionsScreen(
     pinch: Boolean,
     rounded: Boolean,
     radius: Int,
+    orientation: Int,
+    onOrientation: (Int) -> Unit,
     onRounded: (Boolean) -> Unit,
     onRadius: (Int) -> Unit,
     isDefault: Boolean,
@@ -121,6 +125,7 @@ fun HomeOptionsScreen(
     onClose: () -> Unit
 ) {
     var page by remember { mutableStateOf<String?>(null) }
+    var orientDialog by remember { mutableStateOf(false) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     BackHandler(true) { if (page != null) page = null else onClose() }
     val title = when (page) {
@@ -130,6 +135,25 @@ fun HomeOptionsScreen(
         "gest" -> "Tasti e gesture"
         "info" -> "Informazioni"
         else -> "Opzioni home"
+    }
+    if (orientDialog) {
+        Sheet("ORIENTAMENTO SCHERMO", { orientDialog = false }) {
+            Spacer(Modifier.height(8.dp))
+            listOf("Verticale", "Orizzontale", "Predefinito di sistema").forEachIndexed { i, label ->
+                val value = when (i) { 0 -> 1; 1 -> 2; else -> 0 }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onOrientation(value); orientDialog = false }
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(label, color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
+                    RadioButton(selected = orientation == value, onClick = { onOrientation(value); orientDialog = false })
+                }
+            }
+        }
     }
     Column(
         Modifier
@@ -189,6 +213,12 @@ fun HomeOptionsScreen(
                     OptRow(Icons.Outlined.DarkMode, "Tema scuro", null, { onDark(!dark) }) {
                         Switch(checked = dark, onCheckedChange = onDark)
                     }
+                    OptRow(
+                        Icons.Outlined.ScreenRotation,
+                        "Orientamento schermo",
+                        listOf("Predefinito di sistema", "Verticale", "Orizzontale")[orientation.coerceIn(0, 2)],
+                        { orientDialog = true }
+                    )
                     OptRow(Icons.Outlined.Lock, "Blocca layout", "Impedisce di modificare le tile", { onLocked(!locked) }) {
                         Switch(checked = locked, onCheckedChange = onLocked)
                     }

@@ -159,7 +159,12 @@ fun StartScreen(
         val padPx = with(density) { 12.dp.toPx() }
         val gapPx = with(density) { 6.dp.toPx() }
         val screenPx = with(density) { maxWidth.toPx() }
-        val cellPx = (screenPx - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
+        // le tile hanno sempre la dimensione che avrebbero in verticale (lato corto dello schermo)
+        val shortSide = with(density) { minOf(ctx.resources.displayMetrics.widthPixels, ctx.resources.displayMetrics.heightPixels).toFloat() }
+        val baseW = minOf(screenPx, shortSide)
+        val cellPx = (baseW - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
+        val gridW = 2 * padPx + COLUMNS * cellPx + (COLUMNS - 1) * gapPx
+        val offX = ((screenPx - gridW) / 2f).coerceAtLeast(0f)
         val hdrPx = with(density) { 26.dp.toPx() }
         val btnPx = with(density) { 32.dp.toPx() }
 
@@ -175,7 +180,7 @@ fun StartScreen(
         }
 
         fun rectIn(top: FloatArray, t: Tile): Rect {
-            val x = padPx + t.col * (cellPx + gapPx)
+            val x = offX + padPx + t.col * (cellPx + gapPx)
             val w = t.w * cellPx + (t.w - 1) * gapPx
             val y = top[t.row.coerceIn(0, top.size - 1)]
             val bottom = top[(t.row + t.h).coerceIn(0, top.size - 1)] - gapPx
@@ -195,7 +200,7 @@ fun StartScreen(
             dragOrigin = r0
             val left = r0.left + dragOffset.x
             val topY = r0.top + dragOffset.y
-            val col = ((left - padPx) / (cellPx + gapPx)).roundToInt().coerceIn(0, COLUMNS - dragTile.w)
+            val col = ((left - offX - padPx) / (cellPx + gapPx)).roundToInt().coerceIn(0, COLUMNS - dragTile.w)
             var best = 0
             var bd = Float.MAX_VALUE
             for (r in 0 until committedTop.size - 1) {
