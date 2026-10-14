@@ -722,16 +722,17 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             )
         }
         if (showGroupPicker) {
-            MultiAppPicker(
-                title = "Gruppo di tile",
+            GroupPickerDialog(
                 apps = apps,
-                askName = true,
-                minSelected = 1,
-                onConfirm = { name, keys ->
+                onConfirm = { keys, folder ->
                     showGroupPicker = false
-                    val uid = newUid()
-                    store.putExtra("group:$uid", JSONObject().put("name", name).put("apps", JSONArray(keys)))
-                    addTile(Tile("group:$uid", 1, 1))
+                    if (folder) {
+                        val uid = newUid()
+                        store.putExtra("group:$uid", JSONObject().put("name", "").put("apps", JSONArray(keys)))
+                        addTile(Tile("group:$uid", 2, 1))
+                    } else {
+                        keys.forEach { k -> if (tiles.none { it.key == k }) addTile(Tile(k, 1, 1)) }
+                    }
                 },
                 onDismiss = { showGroupPicker = false }
             )

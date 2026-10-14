@@ -568,34 +568,37 @@ fun ContactTile(name: String, photo: ImageBitmap?, size: TileSize) {
 
 @Composable
 fun GroupTile(name: String, apps: List<AppInfo>, size: TileSize) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val small = size == TileSize.SMALL
-        val icon = minOf(maxWidth, maxHeight) * (if (small) 0.3f else 0.28f)
+    BoxWithConstraints(Modifier.fillMaxSize().padding(4.dp)) {
+        val n = apps.size.coerceAtLeast(1)
+        val s = (kotlin.math.sqrt((maxWidth.value * maxHeight.value) / n) * 0.82f).coerceIn(10f, 40f)
+        val gap = 3f
+        val cols = ((maxWidth.value + gap) / (s + gap)).toInt().coerceAtLeast(1)
+        val rowsFit = ((maxHeight.value + gap) / (s + gap)).toInt().coerceAtLeast(1)
         Column(
-            Modifier
-                .align(Alignment.Center)
-                .offset(y = (-6).dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            Modifier.align(Alignment.Center),
+            verticalArrangement = Arrangement.spacedBy(gap.dp)
         ) {
-            apps.take(4).chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    row.forEach { a -> Image(a.icon, a.label, Modifier.size(icon)) }
+            apps.chunked(cols).take(rowsFit).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
+                    row.forEach { a -> Image(a.icon, a.label, Modifier.size(s.dp)) }
                 }
             }
         }
-        Text(
-            name,
-            color = Color.White,
-            fontSize = if (small) 11.sp else 13.sp,
-            maxLines = 1,
-            textAlign = TextAlign.Center,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 3.dp, vertical = if (small) 4.dp else 6.dp)
-        )
+        if (name.isNotBlank()) {
+            Text(
+                name,
+                color = Color.White,
+                fontSize = 11.sp,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color(0x66000000))
+                    .padding(horizontal = 3.dp, vertical = 2.dp)
+            )
+        }
     }
 }
 

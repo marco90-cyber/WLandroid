@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -315,5 +316,116 @@ fun StyleDialog(current: Int?, onPick: (Int?) -> Unit, onDismiss: () -> Unit) {
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** Scelta delle app per un "Gruppo di tile": griglia con selezione multipla, ricerca e opzione "In cartella". */
+@Composable
+fun GroupPickerDialog(apps: List<AppInfo>, onConfirm: (List<String>, Boolean) -> Unit, onDismiss: () -> Unit) {
+    val sel = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    var folder by remember { mutableStateOf(true) }
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val shown = remember(apps, query) {
+        if (query.isBlank()) apps else apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = SheetBg,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 32.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF40434B))
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (searching) {
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(color = SheetText, fontSize = 18.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(SheetIcon),
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Text(
+                            "GRUPPO DI TILE",
+                            color = Color(0xFFA8AAB4),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Icon(
+                        Icons.Outlined.Search,
+                        null,
+                        tint = Color(0xFFA8AAB4),
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clickable { searching = !searching; if (!searching) query = "" }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    gridItems(shown, key = { it.key }) { app ->
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { if (app.key in sel) sel.remove(app.key) else sel.add(app.key) }
+                                .padding(6.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                Image(app.icon, app.label, Modifier.size(48.dp))
+                                Text(
+                                    app.label,
+                                    color = SheetText,
+                                    fontSize = 11.sp,
+                                    maxLines = 2,
+                                    textAlign = TextAlign.Center,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (app.key in sel) {
+                                Icon(
+                                    Icons.Outlined.CheckCircle,
+                                    null,
+                                    tint = SheetIcon,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(20.dp)
+                                        .background(SheetBg, androidx.compose.foundation.shape.CircleShape)
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { folder = !folder }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(checked = folder, onCheckedChange = { folder = it })
+                    Text("In cartella", color = SheetText, fontSize = 16.sp)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Annulla") }
+                    TextButton(enabled = sel.isNotEmpty(), onClick = { onConfirm(sel.toList(), folder) }) { Text("OK") }
+                }
+            }
+        }
     }
 }
