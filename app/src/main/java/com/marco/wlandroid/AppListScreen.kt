@@ -148,6 +148,7 @@ fun SettingsDialog(
     onAccent: (Color) -> Unit,
     onDark: (Boolean) -> Unit,
     onNotifAccess: () -> Unit,
+    onResetLayout: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -179,6 +180,7 @@ fun SettingsDialog(
                 }
                 Spacer(Modifier.size(8.dp))
                 TextButton(onClick = onNotifAccess) { Text("Accesso alle notifiche") }
+                TextButton(onClick = onResetLayout) { Text("Ripristina Start predefinita") }
             }
         }
     )

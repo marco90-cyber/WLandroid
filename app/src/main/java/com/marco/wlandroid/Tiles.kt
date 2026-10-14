@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,28 +102,29 @@ fun AppTile(app: AppInfo, size: TileSize, notif: NotifInfo?) {
 @Composable
 private fun AppFront(app: AppInfo, size: TileSize, notif: NotifInfo?) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val fraction = if (size == TileSize.SMALL) 0.6f else 0.45f
+        val small = size == TileSize.SMALL
+        val fraction = if (small) 0.5f else 0.45f
         val iconSize = minOf(maxWidth, maxHeight) * fraction
         Image(
             bitmap = app.icon,
             contentDescription = app.label,
             modifier = Modifier
                 .align(Alignment.Center)
+                .offset(y = if (small) (-6).dp else (-4).dp)
                 .size(iconSize)
         )
-        if (size != TileSize.SMALL) {
-            Text(
-                app.label,
-                color = Color.White,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .fillMaxWidth(0.8f)
-            )
-        }
+        Text(
+            app.label,
+            color = Color.White,
+            fontSize = if (small) 11.sp else 13.sp,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 3.dp, vertical = if (small) 4.dp else 6.dp)
+        )
         if (notif != null) {
             Text(
                 "${notif.count}",
@@ -380,5 +383,61 @@ fun AddTile(size: TileSize) {
         if (size != TileSize.SMALL) {
             Text("Aggiungi", color = Color.White, fontSize = 13.sp)
         }
+    }
+}
+
+// ---------- Tile "Applicazioni" (apre l'elenco app) ----------
+
+@Composable
+fun AppsTile(size: TileSize) {
+    val small = size == TileSize.SMALL
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .align(Alignment.Center)
+                .offset(y = if (small) (-6).dp else (-4).dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            repeat(3) {
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(3) {
+                        Box(
+                            Modifier
+                                .size(if (small) 8.dp else 10.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                        )
+                    }
+                }
+            }
+        }
+        Text(
+            "Applicazioni",
+            color = Color.White,
+            fontSize = if (small) 11.sp else 13.sp,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 3.dp, vertical = if (small) 4.dp else 6.dp)
+        )
+    }
+}
+
+// ---------- Etichetta di sezione ----------
+
+@Composable
+fun HeaderLabel(text: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+        Text(
+            text,
+            color = Color.White,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
     }
 }

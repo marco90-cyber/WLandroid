@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -91,6 +94,7 @@ class MainActivity : ComponentActivity() {
 fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: Int) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    var needsSeed by remember { mutableStateOf(!store.hasSavedTiles()) }
     var tiles by remember { mutableStateOf(store.loadTiles()) }
     var apps by remember { mutableStateOf(emptyList<AppInfo>()) }
     var accent by remember { mutableStateOf(Color(store.accent)) }
@@ -99,6 +103,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var showSettings by remember { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
     var weather by remember { mutableStateOf(store.weather) }
     var weatherStatus by remember { mutableStateOf<String?>(null) }
     var weatherTick by remember { mutableIntStateOf(0) }
@@ -227,6 +232,21 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             }
             "live:photos" -> photoLauncher.launch(arrayOf("image/*"))
             "live:notif" -> if (!notifConnected) openNotifAccess()
+            "sys:apps" -> scope.launch { pager.animateScrollToPage(1) }
+        }
+    }
+
+    fun resetLayout() {
+        tiles.forEach { t ->
+            if (t.key.startsWith("widget:")) t.key.removePrefix("widget:").toIntOrNull()?.let { widgets.remove(it) }
+        }
+        setTiles(defaultTiles(ctx, apps))
+    }
+
+    LaunchedEffect(apps) {
+        if (needsSeed && apps.isNotEmpty()) {
+            needsSeed = false
+            setTiles(defaultTiles(ctx, apps))
         }
     }
 
@@ -285,7 +305,22 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onAccent = { accent = it; store.accent = it.toArgb() },
                 onDark = { dark = it; store.dark = it },
                 onNotifAccess = { openNotifAccess() },
+                onResetLayout = { showSettings = false; showResetConfirm = true },
                 onDismiss = { showSettings = false }
+            )
+        }
+        if (showResetConfirm) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirm = false },
+                title = { Text("Ripristinare la Start?") },
+                text = { Text("Le tile attuali verranno sostituite dal layout predefinito.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showResetConfirm = false
+                        resetLayout()
+                    }) { Text("Ripristina") }
+                },
+                dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text("Annulla") } }
             )
         }
         if (showAppPicker) {

@@ -71,11 +71,12 @@ fun StartScreen(
     onAddApp: () -> Unit
 ) {
     val visible = tiles.filter {
-        it.key == "sys:add" || it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
+        it.key == "sys:add" || it.key == "sys:apps" || it.key.startsWith("hdr:") || it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
     }
     val packed = remember(visible) { packTiles(visible) }
     val placed = packed.first
     val rows = packed.second
+    val hdrCount = packed.third
     val tilesNow by rememberUpdatedState(tiles)
     val placedNow by rememberUpdatedState(placed)
     val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
@@ -100,13 +101,19 @@ fun StartScreen(
         val padPx = with(density) { 12.dp.toPx() }
         val gapPx = with(density) { 6.dp.toPx() }
         val cellPx = (with(density) { maxWidth.toPx() } - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
+        val hdrPx = with(density) { 26.dp.toPx() }
         val totalHeight = with(density) {
-            (2 * padPx + rows * cellPx + (rows - 1).coerceAtLeast(0) * gapPx).toDp()
+            (2 * padPx + rows * (cellPx + gapPx) + hdrCount * (hdrPx + gapPx) - gapPx)
+                .coerceAtLeast(0f).toDp()
         }
 
         fun rectOf(p: Placed): Rect {
             val x = padPx + p.col * (cellPx + gapPx)
-            val y = padPx + p.row * (cellPx + gapPx)
+            val y = padPx + p.row * (cellPx + gapPx) + p.hdrBefore * (hdrPx + gapPx)
+            if (p.tile.isHeader) {
+                val full = COLUMNS * cellPx + (COLUMNS - 1) * gapPx
+                return Rect(padPx, y, padPx + full, y + hdrPx)
+            }
             val w = p.tile.w * cellPx + (p.tile.w - 1) * gapPx
             val h = p.tile.h * cellPx + (p.tile.h - 1) * gapPx
             return Rect(x, y, x + w, y + h)
@@ -193,11 +200,13 @@ fun StartScreen(
                                     scaleX = s
                                     scaleY = s
                                 }
-                                .background(accent)
+                                .background(if (t.isHeader) Color(0xFF2E2E2E) else accent)
                                 .then(interaction)
                         ) {
                             when {
+                                t.isHeader -> HeaderLabel(t.key.removePrefix("hdr:"))
                                 t.key == "sys:add" -> AddTile(t.size)
+                                t.key == "sys:apps" -> AppsTile(t.size)
                                 t.key == "live:clock" -> ClockTile(t.size)
                                 t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
                                 t.key == "live:photos" -> PhotoTile(photos, t.size)
@@ -254,7 +263,7 @@ fun StartScreen(
                                         .clickable { onRemove(t) }
                                         .padding(horizontal = 8.dp, vertical = 5.dp)
                                 )
-                                Text(
+                                if (!t.isHeader) Text(
                                     "⤢",
                                     color = Color.White,
                                     fontSize = 12.sp,
