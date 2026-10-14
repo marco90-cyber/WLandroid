@@ -208,8 +208,10 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
         store.saveTiles(fixed)
     }
 
+    fun addTile(t: Tile) = setTiles(placeNew(tiles, t))
+
     fun pin(app: AppInfo) {
-        if (tiles.none { it.key == app.key }) setTiles(tiles + Tile(app.key, 2, 2))
+        if (tiles.none { it.key == app.key }) addTile(Tile(app.key, 1, 1))
         scope.launch { pager.animateScrollToPage(0) }
     }
 
@@ -250,7 +252,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         "contact:$uid",
                         JSONObject().put("name", name).put("uri", lookup.toString()).put("photo", photoFile)
                     )
-                    setTiles(tiles + Tile("contact:$uid", 2, 2))
+                    addTile(Tile("contact:$uid", 1, 1))
                 }
             }
         } catch (e: Exception) {
@@ -286,7 +288,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 .put("intent", sIntent.toUri(Intent.URI_INTENT_SCHEME))
                 .put("icon", iconFile)
         )
-        setTiles(tiles + Tile("link:$uid", 1, 1))
+        addTile(Tile("link:$uid", 1, 1))
     }
 
     val contactPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
@@ -308,7 +310,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     fun saveDivider(name: String) {
         val target = dividerTarget ?: return
         if (target.isEmpty()) {
-            setTiles(tiles + Tile("hdr:${newUid()}|$name", COLUMNS, 1))
+            addTile(Tile("hdr:${newUid()}|$name", COLUMNS, 1))
         } else {
             val raw = target.removePrefix("hdr:")
             val uid = if (raw.contains('|')) raw.substringBefore('|') else newUid()
@@ -346,7 +348,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             "divider" -> dividerTarget = ""
             "cube" -> showCubePicker = true
             "group" -> showGroupPicker = true
-            "drawer" -> setTiles(tiles + Tile("sys:apps#${newUid()}", 1, 1))
+            "drawer" -> addTile(Tile("sys:apps#${newUid()}", 1, 1))
             "contact" -> try {
                 contactPicker.launch(null)
             } catch (e: Exception) {
@@ -365,7 +367,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
 
     fun addLive(key: String) {
         if (tiles.none { it.key == key }) {
-            setTiles(tiles + Tile(key, if (key == "live:weather") 4 else 2, 2))
+            addTile(Tile(key, 1, 1))
         }
         if (key == "live:weather" && !hasLoc) locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
         if (key == "live:photos" && photoUris.isEmpty()) photoLauncher.launch(arrayOf("image/*"))
@@ -532,7 +534,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             ActionPickerDialog(
                 onPick = { id ->
                     showActionPicker = false
-                    setTiles(tiles + Tile("act:$id#${newUid()}", 1, 1))
+                    addTile(Tile("act:$id#${newUid()}", 1, 1))
                 },
                 onDismiss = { showActionPicker = false }
             )
@@ -555,7 +557,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     showCubePicker = false
                     val uid = newUid()
                     store.putExtra("cube:$uid", JSONObject().put("apps", JSONArray(keys)))
-                    setTiles(tiles + Tile("cube:$uid", 2, 2))
+                    addTile(Tile("cube:$uid", 1, 1))
                 },
                 onDismiss = { showCubePicker = false }
             )
@@ -570,7 +572,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     showGroupPicker = false
                     val uid = newUid()
                     store.putExtra("group:$uid", JSONObject().put("name", name).put("apps", JSONArray(keys)))
-                    setTiles(tiles + Tile("group:$uid", 2, 2))
+                    addTile(Tile("group:$uid", 1, 1))
                 },
                 onDismiss = { showGroupPicker = false }
             )
@@ -615,7 +617,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     widgets.begin(info) { id ->
                         if (id != null) {
                             val (cw, ch) = sizeForProvider(info, density)
-                            setTiles(tiles + Tile("widget:$id", cw, ch))
+                            addTile(Tile("widget:$id", cw, ch))
                         }
                     }
                 },

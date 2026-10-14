@@ -21,7 +21,10 @@ data class Tile(
     val w: Int,
     val h: Int,
     val color: Int? = null,
-    val label: String? = null
+    val label: String? = null,
+    /** Posizione sulla griglia (colonna, riga). -1 = da assegnare. */
+    val col: Int = -1,
+    val row: Int = -1
 ) {
     /** Classe di dimensione usata dai contenuti per scegliere font e layout. */
     val size: TileSize
@@ -38,8 +41,6 @@ data class Tile(
 data class AppInfo(val label: String, val pkg: String, val cls: String, val icon: ImageBitmap) {
     val key: String get() = "$pkg/$cls"
 }
-
-data class Placed(val idx: Int, val tile: Tile, val col: Int, val row: Int, val hdrBefore: Int)
 
 const val COLUMNS = 4
 
@@ -60,54 +61,99 @@ fun supportsLabel(key: String, isApp: Boolean): Boolean =
 fun newUid(): String = java.lang.Long.toString(System.nanoTime(), 36)
 const val ADD_KEY = "sys:add"
 
-/** La tile "+" è sempre presente e non si può eliminare. */
-fun withAddTile(l: List<Tile>): List<Tile> =
-    if (l.any { it.key == ADD_KEY }) l else l + Tile(ADD_KEY, 1, 1)
+/** Assegna le posizioni mancanti e garantisce che la tile "+" sia sempre presente. */
+fun withAddTile(l: List<Tile>): List<Tile> {
+    val a = if (l.any { it.col < 0 || it.row < 0 }) autoPlace(l) else l
+    if (a.any { it.key == ADD_KEY }) return a
+    val bottom = a.maxOfOrNull { it.row + it.h } ?: 0
+    return a + Tile(ADD_KEY, 1, 1, col = 0, row = bottom)
+}
+
+// ---------- Griglia libera: ogni tile ha la propria posizione ----------
+
+private fun isFree(others: List<Tile>, col: Int, row: Int, w: Int, h: Int): Boolean =
+    others.none { it.col < col + w && col < it.col + it.w && it.row < row + h && row < it.row + it.h }
+
+/** Primo spazio libero (colonna, riga), cercando per righe a partire da (fromCol, fromRow). */
+fun findFree(others: List<Tile>, w: Int, h: Int, fromRow: Int, fromCol: Int): Pair<Int, Int> {
+    var r = fromRow
+    var c = fromCol
+    while (true) {
+        if (c + w > COLUMNS) {
+            r++
+            c = 0
+            continue
+        }
+        if (isFree(others, c, r, w, h)) return c to r
+        c++
+    }
+}
+
+fun overlaps(a: Tile, b: Tile): Boolean =
+    a.col < b.col + b.w && b.col < a.col + a.w && a.row < b.row + b.h && b.row < a.row + a.h
 
 /**
- * First-fit packing su 4 colonne. Le etichette di sezione spezzano il flusso: occupano una
- * fascia a tutta larghezza (alta quanto l'header, non una riga di celle) e le tile successive
- * ripartono sotto di essa. Restituisce (tile posizionate, righe di celle, numero di header).
+ * Assegna una posizione alle tile che non ce l'hanno, nell'ordine della lista (come il vecchio
+ * impilamento): un divisore va su una riga nuova e le tile successive ripartono sotto di esso.
  */
-fun packTiles(tiles: List<Tile>): Triple<List<Placed>, Int, Int> {
-    val occ = mutableListOf<BooleanArray>()
-    fun ensure(r: Int) {
-        while (occ.size <= r) occ.add(BooleanArray(COLUMNS))
-    }
-    val out = mutableListOf<Placed>()
-    var hdrs = 0
+fun autoPlace(tiles: List<Tile>): List<Tile> {
+    val out = ArrayList<Tile>(tiles.size)
+    val occ = ArrayList<Tile>()
     var baseRow = 0
-    tiles.forEachIndexed { i, t ->
-        if (t.isHeader) {
-            baseRow = occ.size
-            out.add(Placed(i, t, 0, baseRow, hdrs))
-            hdrs++
-        } else {
-            var r = baseRow
-            var done = false
-            while (!done) {
-                var c = 0
-                while (c + t.w <= COLUMNS && !done) {
-                    ensure(r + t.h - 1)
-                    var free = true
-                    for (dr in 0 until t.h) for (dc in 0 until t.w) {
-                        if (occ[r + dr][c + dc]) free = false
-                    }
-                    if (free) {
-                        for (dr in 0 until t.h) for (dc in 0 until t.w) {
-                            occ[r + dr][c + dc] = true
-                        }
-                        out.add(Placed(i, t, c, r, hdrs))
-                        done = true
-                    } else {
-                        c++
-                    }
-                }
-                if (!done) r++
+    for (t in tiles) {
+        val placed = when {
+            t.col >= 0 && t.row >= 0 -> t
+            t.isHeader -> {
+                val bottom = occ.maxOfOrNull { it.row + it.h } ?: 0
+                val (c, r) = findFree(occ, t.w, t.h, maxOf(bottom, baseRow), 0)
+                t.copy(col = c, row = r)
+            }
+            else -> {
+                val (c, r) = findFree(occ, t.w, t.h, baseRow, 0)
+                t.copy(col = c, row = r)
             }
         }
+        if (placed.isHeader) baseRow = placed.row + 1
+        out.add(placed)
+        occ.add(placed)
     }
-    return Triple(out, occ.size, hdrs)
+    return out
+}
+
+/**
+ * La tile `movedKey` è già nella sua nuova posizione/dimensione: le tile che la sovrappongono
+ * vengono spinte verso il basso (a cascata). Gli spazi lasciati vuoti restano vuoti.
+ */
+fun resolveLayout(tiles: List<Tile>, movedKey: String): List<Tile> {
+    val moved = tiles.firstOrNull { it.key == movedKey } ?: return tiles
+    val settled = arrayListOf(moved)
+    val result = HashMap<String, Tile>()
+    result[movedKey] = moved
+    val others = tiles.filter { it.key != movedKey }.sortedWith(compareBy({ it.row }, { it.col }))
+    for (x in others) {
+        var cur = x
+        var guard = 0
+        while (guard++ < 500) {
+            val hit = settled.firstOrNull { overlaps(cur, it) } ?: break
+            cur = cur.copy(row = hit.row + hit.h)
+        }
+        settled.add(cur)
+        result[cur.key] = cur
+    }
+    return tiles.map { result[it.key] ?: it }
+}
+
+/** Aggiunge una nuova tile nel primo spazio libero a partire dal "+", poi sposta il "+" dopo di essa. */
+fun placeNew(tiles: List<Tile>, t: Tile): List<Tile> {
+    val plus = tiles.firstOrNull { it.key == ADD_KEY }
+    val base = tiles.filter { it.key != ADD_KEY }
+    val bottom = base.maxOfOrNull { it.row + it.h } ?: 0
+    val (sc, sr) = if (plus != null && plus.col >= 0) plus.col to plus.row else 0 to bottom
+    val (c, r) = findFree(base, t.w, t.h, sr, sc)
+    val placed = t.copy(col = c, row = r)
+    val withNew = base + placed
+    val (pc, pr) = findFree(withNew, 1, 1, r, c + t.w)
+    return withNew + (plus ?: Tile(ADD_KEY, 1, 1)).copy(col = pc, row = pr)
 }
 
 // ---------- Start predefinita ----------
@@ -194,7 +240,9 @@ class Store(ctx: Context) {
                         o.getInt("w").coerceIn(1, COLUMNS),
                         o.getInt("h").coerceIn(1, 12),
                         if (o.has("c")) o.getInt("c") else null,
-                        if (o.has("l")) o.getString("l") else null
+                        if (o.has("l")) o.getString("l") else null,
+                        o.optInt("x", -1),
+                        o.optInt("y", -1)
                     )
                 } else {
                     val sz = TileSize.valueOf(o.getString("s"))
@@ -209,7 +257,7 @@ class Store(ctx: Context) {
     fun saveTiles(list: List<Tile>) {
         val a = JSONArray()
         list.forEach { t ->
-            val o = JSONObject().put("k", t.key).put("w", t.w).put("h", t.h)
+            val o = JSONObject().put("k", t.key).put("w", t.w).put("h", t.h).put("x", t.col).put("y", t.row)
             t.color?.let { o.put("c", it) }
             t.label?.let { o.put("l", it) }
             a.put(o)
