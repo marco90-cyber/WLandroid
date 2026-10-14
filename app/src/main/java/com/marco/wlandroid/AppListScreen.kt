@@ -16,6 +16,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,85 +67,155 @@ fun AppListScreen(
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var menuFor by remember { mutableStateOf<String?>(null) }
-    val groups = remember(apps) {
-        apps.groupBy { a ->
-            val c = a.label.firstOrNull()?.uppercaseChar()
-            if (c != null && c.isLetter()) c else '#'
-        }.toSortedMap()
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var sortMenu by remember { mutableStateOf(false) }
+    var sortMode by remember { mutableStateOf(0) } // 0 A-Z, 1 Z-A, 2 più recenti
+    val focus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    val installed = remember(apps) {
+        apps.associate { a ->
+            a.pkg to try {
+                ctx.packageManager.getPackageInfo(a.pkg, 0).firstInstallTime
+            } catch (e: Exception) {
+                0L
+            }
+        }
     }
+    androidx.activity.compose.BackHandler(searching) {
+        searching = false
+        query = ""
+    }
+    val shown = remember(apps, query, sortMode) {
+        val f = if (query.isBlank()) apps else apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
+        when (sortMode) {
+            1 -> f.sortedByDescending { it.label.lowercase() }
+            2 -> f.sortedByDescending { installed[it.pkg] ?: 0L }
+            else -> f.sortedBy { it.label.lowercase() }
+        }
+    }
+    val barBg = Color(0xFF15171C)
+    val barIcon = Color(0xFFE3E3E8)
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize()) {
-            item {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Apps", color = fg, fontSize = 34.sp, fontWeight = FontWeight.Light)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        "⋮",
-                        color = fg,
-                        fontSize = 28.sp,
-                        modifier = Modifier
-                            .clickable { onSettings() }
-                            .padding(horizontal = 12.dp)
-                    )
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp)
+        ) {
+            items(shown, key = { it.key }) { app ->
+                Box {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { onOpen(app) },
+                                onLongClick = { menuFor = app.key }
+                            )
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(app.icon, app.label, Modifier.size(48.dp))
+                        Spacer(Modifier.width(24.dp))
+                        Text(app.label, color = fg, fontSize = 20.sp)
+                    }
+                    DropdownMenu(expanded = menuFor == app.key, onDismissRequest = { menuFor = null }) {
+                        DropdownMenuItem(
+                            text = { Text("Aggiungi alla Start") },
+                            onClick = { menuFor = null; onPin(app) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Info app") },
+                            onClick = { menuFor = null; openAppInfo(ctx, app.pkg) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Disinstalla") },
+                            onClick = { menuFor = null; uninstall(ctx, app.pkg) }
+                        )
+                    }
                 }
             }
-            groups.forEach { (letter, list) ->
-                item(key = "h$letter") {
+        }
+
+        Row(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
+                .background(barBg),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (searching) {
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { searching = false; query = "" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.AutoMirrored.Outlined.ArrowBack, null, tint = barIcon
+                    )
+                }
+                androidx.compose.foundation.text.BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(color = barIcon, fontSize = 18.sp),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF8AB4F8)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .focusRequester(focus)
+                )
+                androidx.compose.runtime.LaunchedEffect(Unit) { focus.requestFocus() }
+            } else {
+                Spacer(Modifier.weight(1f))
+                Box {
                     Box(
                         Modifier
-                            .padding(start = 20.dp, top = 12.dp, bottom = 4.dp)
-                            .size(44.dp)
-                            .background(accent),
+                            .size(48.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clickable { sortMenu = true },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(letter.toString(), color = Color.White, fontSize = 22.sp)
+                        androidx.compose.material3.Icon(
+                            androidx.compose.material.icons.Icons.Outlined.Sort, "Ordina", tint = barIcon
+                        )
                     }
-                }
-                items(list, key = { it.key }) { app ->
-                    Box {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = { onOpen(app) },
-                                    onLongClick = { menuFor = app.key }
-                                )
-                                .padding(horizontal = 20.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                Modifier
-                                    .size(48.dp)
-                                    .background(accent),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(app.icon, app.label, Modifier.size(32.dp))
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Text(app.label, color = fg, fontSize = 20.sp, fontWeight = FontWeight.Light)
-                        }
-                        DropdownMenu(expanded = menuFor == app.key, onDismissRequest = { menuFor = null }) {
+                    DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                        listOf("Nome A → Z", "Nome Z → A", "Più recenti").forEachIndexed { i, l ->
                             DropdownMenuItem(
-                                text = { Text("Aggiungi alla Start") },
-                                onClick = { menuFor = null; onPin(app) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Info app") },
-                                onClick = { menuFor = null; openAppInfo(ctx, app.pkg) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Disinstalla") },
-                                onClick = { menuFor = null; uninstall(ctx, app.pkg) }
+                                text = { Text(l, fontWeight = if (i == sortMode) FontWeight.Bold else FontWeight.Normal) },
+                                onClick = { sortMode = i; sortMenu = false }
                             )
                         }
                     }
                 }
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { onSettings() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Outlined.Settings, "Opzioni", tint = barIcon
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { searching = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Outlined.Search, "Cerca", tint = barIcon
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
             }
         }
     }
