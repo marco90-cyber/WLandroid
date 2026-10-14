@@ -36,6 +36,17 @@ data class AppInfo(val label: String, val pkg: String, val cls: String, val icon
 data class Placed(val idx: Int, val tile: Tile, val col: Int, val row: Int, val hdrBefore: Int)
 
 const val COLUMNS = 4
+
+fun isSpecialKey(k: String): Boolean =
+    listOf("sys:", "hdr:", "live:", "widget:", "act:", "link:", "contact:", "cube:", "group:").any { k.startsWith(it) }
+
+/** Nome visibile di un divisore: key = "hdr:<uid>|<nome>" oppure "hdr:<nome>". */
+fun headerName(key: String): String {
+    val r = key.removePrefix("hdr:")
+    return if (r.contains('|')) r.substringAfter('|') else r
+}
+
+fun newUid(): String = java.lang.Long.toString(System.nanoTime(), 36)
 const val ADD_KEY = "sys:add"
 
 /** La tile "+" è sempre presente e non si può eliminare. */
@@ -146,6 +157,19 @@ class Store(ctx: Context) {
 
     /** True se la Start è già stata salvata almeno una volta (installazione esistente). */
     fun hasSavedTiles(): Boolean = p.contains("tiles")
+
+    fun extra(key: String): JSONObject? {
+        val s = p.getString("x:$key", null) ?: return null
+        return try {
+            JSONObject(s)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun putExtra(key: String, o: JSONObject) = p.edit().putString("x:$key", o.toString()).apply()
+
+    fun removeExtra(key: String) = p.edit().remove("x:$key").apply()
 
     fun loadTiles(): List<Tile> {
         val s = p.getString("tiles", null) ?: return withAddTile(emptyList())

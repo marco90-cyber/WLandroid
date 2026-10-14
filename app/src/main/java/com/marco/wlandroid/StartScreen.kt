@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -65,14 +66,14 @@ fun StartScreen(
     onTiles: (List<Tile>) -> Unit,
     onRemove: (Tile) -> Unit,
     onOpen: (AppInfo) -> Unit,
+    data: TileData,
     onLiveClick: (String) -> Unit,
-    onAddLive: (String) -> Unit,
-    onAddWidget: () -> Unit,
-    onAddApp: () -> Unit
+    onOpenLink: (String) -> Unit,
+    onOpenContact: (String) -> Unit,
+    onRename: (Tile) -> Unit,
+    onAddMenu: () -> Unit
 ) {
-    val visible = tiles.filter {
-        it.key == "sys:add" || it.key == "sys:apps" || it.key.startsWith("hdr:") || it.key.startsWith("live:") || it.key.startsWith("widget:") || apps.containsKey(it.key)
-    }
+    val visible = tiles.filter { isSpecialKey(it.key) || apps.containsKey(it.key) }
     val packed = remember(visible) { packTiles(visible) }
     val placed = packed.first
     val rows = packed.second
@@ -82,11 +83,25 @@ fun StartScreen(
     val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var addMenuOpen by remember { mutableStateOf(false) }
+    var openGroup by remember { mutableStateOf<String?>(null) }
+    val cubeIndex = remember { mutableStateMapOf<String, Int>() }
+    fun appsOf(key: String): List<AppInfo> =
+        data.extra(key)?.optJSONArray("apps")?.let { a ->
+            (0 until a.length()).mapNotNull { apps[a.optString(it)] }
+        } ?: emptyList()
     var resizeKey by remember { mutableStateOf<String?>(null) }
     var resizeW by remember { mutableIntStateOf(1) }
     var resizeH by remember { mutableIntStateOf(1) }
     val density = LocalDensity.current
+
+    openGroup?.let { gk ->
+        GroupDialog(
+            name = data.extra(gk)?.optString("name").orEmpty(),
+            apps = appsOf(gk),
+            onOpen = { openGroup = null; onOpen(it) },
+            onDismiss = { openGroup = null }
+        )
+    }
 
     BoxWithConstraints(
         Modifier
@@ -180,8 +195,17 @@ fun StartScreen(
                         } else {
                             Modifier.combinedClickable(
                                 onClick = {
-                                    if (t.key == "sys:add") addMenuOpen = true
-                                    else if (app != null) onOpen(app) else onLiveClick(t.key)
+                                    val k = t.key
+                                    when {
+                                        k == "sys:add" -> onAddMenu()
+                                        app != null -> onOpen(app)
+                                        k.startsWith("link:") -> onOpenLink(k)
+                                        k.startsWith("contact:") -> onOpenContact(k)
+                                        k.startsWith("cube:") ->
+                                            appsOf(k).getOrNull(cubeIndex[k] ?: 0)?.let { onOpen(it) }
+                                        k.startsWith("group:") -> openGroup = k
+                                        else -> onLiveClick(k)
+                                    }
                                 },
                                 onLongClick = { onEdit(true) }
                             )
@@ -204,9 +228,25 @@ fun StartScreen(
                                 .then(interaction)
                         ) {
                             when {
-                                t.isHeader -> HeaderLabel(t.key.removePrefix("hdr:"))
+                                t.isHeader -> HeaderLabel(headerName(t.key))
                                 t.key == "sys:add" -> AddTile(t.size)
-                                t.key == "sys:apps" -> AppsTile(t.size)
+                                t.key.startsWith("sys:apps") -> AppsTile(t.size)
+                                t.key.startsWith("act:") ->
+                                    ActionTile(actionById(t.key.removePrefix("act:").substringBefore('#')), t.size)
+                                t.key.startsWith("link:") -> LinkTile(
+                                    data.extra(t.key)?.optString("name").orEmpty(),
+                                    data.bitmap(data.extra(t.key)?.optString("icon")),
+                                    t.size
+                                )
+                                t.key.startsWith("contact:") -> ContactTile(
+                                    data.extra(t.key)?.optString("name").orEmpty(),
+                                    data.bitmap(data.extra(t.key)?.optString("photo")),
+                                    t.size
+                                )
+                                t.key.startsWith("cube:") ->
+                                    CubeTile(appsOf(t.key), cubeIndex[t.key] ?: 0, { cubeIndex[t.key] = it }, t.size)
+                                t.key.startsWith("group:") ->
+                                    GroupTile(data.extra(t.key)?.optString("name").orEmpty(), appsOf(t.key), t.size)
                                 t.key == "live:clock" -> ClockTile(t.size)
                                 t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
                                 t.key == "live:photos" -> PhotoTile(photos, t.size)
@@ -218,25 +258,6 @@ fun StartScreen(
                                     with(density) { r.height.toDp().value.toInt() }
                                 )
                                 app != null -> AppTile(app, t.size, notifs[app.pkg])
-                            }
-                            if (t.key == "sys:add") {
-                                DropdownMenu(expanded = addMenuOpen, onDismissRequest = { addMenuOpen = false }) {
-                                    listOf(
-                                        "Widget" to { onAddWidget() },
-                                        "Meteo" to { onAddLive("live:weather") },
-                                        "Foto" to { onAddLive("live:photos") },
-                                        "Notifiche" to { onAddLive("live:notif") },
-                                        "Aggiungi app" to { onAddApp() }
-                                    ).forEach { (label, action) ->
-                                        DropdownMenuItem(
-                                            text = { Text(label) },
-                                            onClick = {
-                                                addMenuOpen = false
-                                                action()
-                                            }
-                                        )
-                                    }
-                                }
                             }
                             if (editing && widgetId != null) {
                                 // intercetta i tocchi, così il widget non li "ruba" al trascinamento
@@ -251,17 +272,29 @@ fun StartScreen(
                                 )
                             }
                             if (editing) {
+                                if (t.isHeader) Text(
+                                    "✎",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(end = 40.dp, top = 1.dp, bottom = 1.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.55f))
+                                        .clickable { onRename(t) }
+                                        .padding(horizontal = 8.dp, vertical = 1.dp)
+                                )
                                 if (t.key != "sys:add") Text(
                                     "✕",
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(4.dp)
+                                        .padding(if (t.isHeader) 1.dp else 4.dp)
                                         .clip(CircleShape)
                                         .background(Color.Black.copy(alpha = 0.55f))
                                         .clickable { onRemove(t) }
-                                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                                        .padding(horizontal = 8.dp, vertical = if (t.isHeader) 1.dp else 5.dp)
                                 )
                                 if (!t.isHeader) Text(
                                     "⤢",

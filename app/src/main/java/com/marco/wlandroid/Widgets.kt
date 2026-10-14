@@ -152,6 +152,8 @@ fun WidgetTile(ctl: WidgetController, id: Int, widthDp: Int, heightDp: Int) {
 @Composable
 fun WidgetPickerDialog(
     ctl: WidgetController,
+    builtins: List<Pair<String, String>>,
+    onBuiltin: (String) -> Unit,
     onPick: (AppWidgetProviderInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -175,6 +177,19 @@ fun WidgetPickerDialog(
         title = { Text("Aggiungi widget") },
         text = {
             LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                items(builtins) { (bKey, bLabel) ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onBuiltin(bKey) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.size(36.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(bLabel, fontSize = 16.sp)
+                    }
+                }
                 items(entries) { (p, label, icon) ->
                     Row(
                         Modifier

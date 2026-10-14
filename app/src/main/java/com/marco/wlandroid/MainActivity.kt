@@ -3,7 +3,11 @@ package com.marco.wlandroid
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import android.provider.ContactsContract
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -44,10 +48,13 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private var homeTick by mutableIntStateOf(0)
@@ -94,6 +101,7 @@ class MainActivity : ComponentActivity() {
 fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: Int) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val data = remember { TileData(ctx, store) }
     var needsSeed by remember { mutableStateOf(!store.hasSavedTiles()) }
     var tiles by remember { mutableStateOf(store.loadTiles()) }
     var apps by remember { mutableStateOf(emptyList<AppInfo>()) }
@@ -104,6 +112,11 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var showWidgetPicker by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var showAddMenu by remember { mutableStateOf(false) }
+    var showActionPicker by remember { mutableStateOf(false) }
+    var showCubePicker by remember { mutableStateOf(false) }
+    var showGroupPicker by remember { mutableStateOf(false) }
+    var dividerTarget by remember { mutableStateOf<String?>(null) }
     var weather by remember { mutableStateOf(store.weather) }
     var weatherStatus by remember { mutableStateOf<String?>(null) }
     var weatherTick by remember { mutableIntStateOf(0) }
@@ -202,7 +215,144 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
         if (t.key.startsWith("widget:")) {
             t.key.removePrefix("widget:").toIntOrNull()?.let { widgets.remove(it) }
         }
+        data.cleanup(t.key)
         setTiles(tiles.filter { it.key != t.key })
+    }
+
+    fun addContact(uri: Uri) {
+        try {
+            ctx.contentResolver.query(
+                uri,
+                arrayOf(
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.LOOKUP_KEY,
+                    ContactsContract.Contacts.DISPLAY_NAME
+                ),
+                null, null, null
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    val id = c.getLong(0)
+                    val lk = c.getString(1)
+                    val name = c.getString(2) ?: ""
+                    val lookup = ContactsContract.Contacts.getLookupUri(id, lk)
+                    val uid = newUid()
+                    var photoFile = ""
+                    ContactsContract.Contacts.openContactPhotoInputStream(ctx.contentResolver, uri, true)?.use { st ->
+                        BitmapFactory.decodeStream(st)?.let { bmp ->
+                            photoFile = "ph_$uid.png"
+                            data.saveBitmap(photoFile, bmp)
+                        }
+                    }
+                    store.putExtra(
+                        "contact:$uid",
+                        JSONObject().put("name", name).put("uri", lookup.toString()).put("photo", photoFile)
+                    )
+                    setTiles(tiles + Tile("contact:$uid", 2, 2))
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
+    fun handleShortcut(d: Intent?) {
+        if (d == null) return
+        val sIntent = d.parcel(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java) ?: return
+        val name = d.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: "Collegamento"
+        var bmp: Bitmap? = d.parcel(Intent.EXTRA_SHORTCUT_ICON, Bitmap::class.java)
+        if (bmp == null) {
+            val r = d.parcel(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, Intent.ShortcutIconResource::class.java)
+            if (r != null) {
+                try {
+                    val pc = ctx.createPackageContext(r.packageName, 0)
+                    val rid = pc.resources.getIdentifier(r.resourceName, null, null)
+                    bmp = androidx.core.content.res.ResourcesCompat.getDrawable(pc.resources, rid, null)
+                        ?.toBitmap(128, 128)
+                } catch (e: Exception) {
+                }
+            }
+        }
+        val uid = newUid()
+        var iconFile = ""
+        if (bmp != null) {
+            iconFile = "ico_$uid.png"
+            data.saveBitmap(iconFile, bmp)
+        }
+        store.putExtra(
+            "link:$uid",
+            JSONObject().put("name", name)
+                .put("intent", sIntent.toUri(Intent.URI_INTENT_SCHEME))
+                .put("icon", iconFile)
+        )
+        setTiles(tiles + Tile("link:$uid", 1, 1))
+    }
+
+    val contactPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
+        if (uri != null) addContact(uri)
+    }
+    val createShortcut = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        if (res.resultCode == Activity.RESULT_OK) handleShortcut(res.data)
+    }
+    val pickShortcut = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val d = res.data
+        if (res.resultCode == Activity.RESULT_OK && d != null) {
+            try {
+                createShortcut.launch(Intent(d))
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    fun saveDivider(name: String) {
+        val target = dividerTarget ?: return
+        if (target.isEmpty()) {
+            setTiles(tiles + Tile("hdr:${newUid()}|$name", COLUMNS, 1))
+        } else {
+            val raw = target.removePrefix("hdr:")
+            val uid = if (raw.contains('|')) raw.substringBefore('|') else newUid()
+            setTiles(tiles.map { if (it.key == target) it.copy(key = "hdr:$uid|$name") else it })
+        }
+        dividerTarget = null
+    }
+
+    fun performAction(id: String) {
+        when (id) {
+            "apps" -> scope.launch { pager.animateScrollToPage(1) }
+            "edit" -> {
+                scope.launch { pager.animateScrollToPage(0) }
+                editing = true
+            }
+            "settings" -> showSettings = true
+            "notif" -> expandNotifications(ctx)
+            "torch" -> toggleTorch(ctx)
+            "sys" -> openSettings(ctx, Settings.ACTION_SETTINGS)
+            "wifi" -> openSettings(ctx, Settings.ACTION_WIFI_SETTINGS)
+            "bt" -> openSettings(ctx, Settings.ACTION_BLUETOOTH_SETTINGS)
+        }
+    }
+
+    fun onAddPick(id: String) {
+        showAddMenu = false
+        when (id) {
+            "app" -> showAppPicker = true
+            "link" -> try {
+                pickShortcut.launch(
+                    Intent(Intent.ACTION_PICK_ACTIVITY)
+                        .putExtra(Intent.EXTRA_INTENT, Intent(Intent.ACTION_CREATE_SHORTCUT))
+                        .putExtra(Intent.EXTRA_TITLE, "Collegamento")
+                )
+            } catch (e: Exception) {
+            }
+            "action" -> showActionPicker = true
+            "widget" -> showWidgetPicker = true
+            "divider" -> dividerTarget = ""
+            "cube" -> showCubePicker = true
+            "group" -> showGroupPicker = true
+            "drawer" -> setTiles(tiles + Tile("sys:apps#${newUid()}", 1, 1))
+            "contact" -> try {
+                contactPicker.launch(null)
+            } catch (e: Exception) {
+            }
+        }
     }
 
     fun openNotifAccess() {
@@ -232,7 +382,10 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             }
             "live:photos" -> photoLauncher.launch(arrayOf("image/*"))
             "live:notif" -> if (!notifConnected) openNotifAccess()
-            "sys:apps" -> scope.launch { pager.animateScrollToPage(1) }
+            else -> when {
+                key.startsWith("sys:apps") -> scope.launch { pager.animateScrollToPage(1) }
+                key.startsWith("act:") -> performAction(key.removePrefix("act:").substringBefore('#'))
+            }
         }
     }
 
@@ -281,10 +434,33 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         onTiles = { setTiles(it) },
                         onRemove = { removeTile(it) },
                         onOpen = { launchApp(ctx, it) },
+                        data = data,
                         onLiveClick = { onLiveClick(it) },
-                        onAddLive = { addLive(it) },
-                        onAddWidget = { showWidgetPicker = true },
-                        onAddApp = { showAppPicker = true }
+                        onOpenLink = { k ->
+                            val u = data.extra(k)?.optString("intent").orEmpty()
+                            if (u.isNotEmpty()) {
+                                try {
+                                    ctx.startActivity(
+                                        Intent.parseUri(u, Intent.URI_INTENT_SCHEME)
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                } catch (e: Exception) {
+                                }
+                            }
+                        },
+                        onOpenContact = { k ->
+                            val u = data.extra(k)?.optString("uri").orEmpty()
+                            if (u.isNotEmpty()) {
+                                try {
+                                    ctx.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(u)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                } catch (e: Exception) {
+                                }
+                            }
+                        },
+                        onRename = { dividerTarget = it.key },
+                        onAddMenu = { showAddMenu = true }
                     )
                 } else {
                     AppListScreen(
@@ -307,6 +483,56 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onNotifAccess = { openNotifAccess() },
                 onResetLayout = { showSettings = false; showResetConfirm = true },
                 onDismiss = { showSettings = false }
+            )
+        }
+        if (showAddMenu) {
+            AddMenuDialog(onPick = { onAddPick(it) }, onDismiss = { showAddMenu = false })
+        }
+        if (showActionPicker) {
+            ActionPickerDialog(
+                onPick = { id ->
+                    showActionPicker = false
+                    setTiles(tiles + Tile("act:$id#${newUid()}", 1, 1))
+                },
+                onDismiss = { showActionPicker = false }
+            )
+        }
+        dividerTarget?.let { tgt ->
+            TextInputDialog(
+                title = if (tgt.isEmpty()) "Nuovo divisore" else "Rinomina divisore",
+                initial = if (tgt.isEmpty()) "" else headerName(tgt),
+                onConfirm = { saveDivider(it) },
+                onDismiss = { dividerTarget = null }
+            )
+        }
+        if (showCubePicker) {
+            MultiAppPicker(
+                title = "Cubo: scegli le app",
+                apps = apps,
+                askName = false,
+                minSelected = 2,
+                onConfirm = { _, keys ->
+                    showCubePicker = false
+                    val uid = newUid()
+                    store.putExtra("cube:$uid", JSONObject().put("apps", JSONArray(keys)))
+                    setTiles(tiles + Tile("cube:$uid", 2, 2))
+                },
+                onDismiss = { showCubePicker = false }
+            )
+        }
+        if (showGroupPicker) {
+            MultiAppPicker(
+                title = "Gruppo di tile",
+                apps = apps,
+                askName = true,
+                minSelected = 1,
+                onConfirm = { name, keys ->
+                    showGroupPicker = false
+                    val uid = newUid()
+                    store.putExtra("group:$uid", JSONObject().put("name", name).put("apps", JSONArray(keys)))
+                    setTiles(tiles + Tile("group:$uid", 2, 2))
+                },
+                onDismiss = { showGroupPicker = false }
             )
         }
         if (showResetConfirm) {
@@ -337,6 +563,13 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             val density = ctx.resources.displayMetrics.density
             WidgetPickerDialog(
                 ctl = widgets,
+                builtins = listOf(
+                    "live:weather" to "Meteo (WLandroid)",
+                    "live:photos" to "Foto (WLandroid)",
+                    "live:notif" to "Notifiche (WLandroid)",
+                    "live:clock" to "Orologio (WLandroid)"
+                ),
+                onBuiltin = { showWidgetPicker = false; addLive(it) },
                 onPick = { info ->
                     showWidgetPicker = false
                     widgets.begin(info) { id ->
@@ -351,3 +584,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
         }
     }
 }
+
+@Suppress("DEPRECATION")
+private fun <T : android.os.Parcelable> Intent.parcel(name: String, cls: Class<T>): T? =
+    if (Build.VERSION.SDK_INT >= 33) getParcelableExtra(name, cls) else getParcelableExtra<T>(name)

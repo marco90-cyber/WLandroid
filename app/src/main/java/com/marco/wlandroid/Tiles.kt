@@ -1,6 +1,7 @@
 package com.marco.wlandroid
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -439,5 +441,158 @@ fun HeaderLabel(text: String) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
+    }
+}
+
+// ---------- Azione del launcher ----------
+
+@Composable
+fun ActionTile(action: LAction?, size: TileSize) {
+    val small = size == TileSize.SMALL
+    Box(Modifier.fillMaxSize()) {
+        if (action != null) {
+            Icon(
+                action.icon,
+                contentDescription = action.label,
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = if (small) (-6).dp else (-4).dp)
+                    .size(if (small) 32.dp else 44.dp)
+            )
+            Text(
+                action.label,
+                color = Color.White,
+                fontSize = if (small) 11.sp else 13.sp,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 3.dp, vertical = if (small) 4.dp else 6.dp)
+            )
+        }
+    }
+}
+
+// ---------- Collegamento ----------
+
+@Composable
+fun LinkTile(name: String, icon: ImageBitmap?, size: TileSize) {
+    if (icon != null) {
+        AppFront(AppInfo(name, "", "", icon), size, null)
+    } else {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                name.take(1).uppercase(),
+                color = Color.White,
+                fontSize = if (size == TileSize.SMALL) 28.sp else 48.sp,
+                fontWeight = FontWeight.Light
+            )
+        }
+    }
+}
+
+// ---------- Contatto ----------
+
+@Composable
+fun ContactTile(name: String, photo: ImageBitmap?, size: TileSize) {
+    Box(Modifier.fillMaxSize()) {
+        if (photo != null) {
+            Image(
+                bitmap = photo,
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                name.take(1).uppercase(),
+                color = Color.White,
+                fontSize = if (size == TileSize.SMALL) 28.sp else 56.sp,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        Text(
+            name,
+            color = Color.White,
+            fontSize = if (size == TileSize.SMALL) 11.sp else 13.sp,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.35f))
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+    }
+}
+
+// ---------- Gruppo di tile ----------
+
+@Composable
+fun GroupTile(name: String, apps: List<AppInfo>, size: TileSize) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val small = size == TileSize.SMALL
+        val icon = minOf(maxWidth, maxHeight) * (if (small) 0.3f else 0.28f)
+        Column(
+            Modifier
+                .align(Alignment.Center)
+                .offset(y = (-6).dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            apps.take(4).chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { a -> Image(a.icon, a.label, Modifier.size(icon)) }
+                }
+            }
+        }
+        Text(
+            name,
+            color = Color.White,
+            fontSize = if (small) 11.sp else 13.sp,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 3.dp, vertical = if (small) 4.dp else 6.dp)
+        )
+    }
+}
+
+// ---------- Cubo: le app ruotano in 3D una dopo l'altra ----------
+
+@Composable
+fun CubeTile(apps: List<AppInfo>, index: Int, onIndex: (Int) -> Unit, size: TileSize) {
+    if (apps.isEmpty()) return
+    var shown by remember { mutableIntStateOf(index.coerceIn(0, apps.size - 1)) }
+    val rot = remember { Animatable(0f) }
+    val dens = LocalDensity.current.density
+    LaunchedEffect(apps.size) {
+        delay(1500)
+        while (apps.size > 1) {
+            delay(3500)
+            rot.animateTo(90f, tween(350))
+            shown = (shown + 1) % apps.size
+            onIndex(shown)
+            rot.snapTo(-90f)
+            rot.animateTo(0f, tween(350))
+        }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                rotationY = rot.value
+                cameraDistance = 16f * dens
+            }
+    ) {
+        AppFront(apps[shown.coerceIn(0, apps.size - 1)], size, null)
     }
 }
