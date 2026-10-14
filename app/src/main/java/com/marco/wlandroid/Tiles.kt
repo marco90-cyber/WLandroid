@@ -375,7 +375,7 @@ fun AddTile(size: TileSize, corner: Int = 0) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
             val r = corner.dp.toPx()
-            val stroke = 7.dp.toPx().coerceAtMost(size.minDimension / 4f)
+            val stroke = 7.dp.toPx().coerceAtMost(this@Canvas.size.minDimension / 4f)
             val outer = androidx.compose.ui.graphics.Path().apply {
                 addRoundRect(
                     androidx.compose.ui.geometry.RoundRect(
