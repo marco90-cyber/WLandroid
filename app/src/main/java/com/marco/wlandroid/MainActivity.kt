@@ -112,6 +112,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var editing by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(store.locked) }
     var orient by remember { mutableIntStateOf(store.orientation) }
+    var landFill by remember { mutableStateOf(store.landscapeFill) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -341,7 +342,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     fun saveDivider(name: String) {
         val target = dividerTarget ?: return
         if (target.isEmpty()) {
-            addTile(Tile("hdr:${newUid()}|$name", COLUMNS, 1))
+            addTile(Tile("hdr:${newUid()}|$name", BASE_COLUMNS, 1))
         } else {
             val raw = target.removePrefix("hdr:")
             val uid = if (raw.contains('|')) raw.substringBefore('|') else newUid()
@@ -465,6 +466,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         accent = accent,
                         editing = editing,
                         locked = locked,
+                        fill = landFill,
                         corner = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0,
                         notifs = notifs,
                         notifConnected = notifConnected,
@@ -565,6 +567,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 pinch = pinchOn,
                 rounded = rounded,
                 radius = radius,
+                landscapeFill = landFill,
+                onLandscapeFill = { landFill = it; store.landscapeFill = it },
                 orientation = orient,
                 onOrientation = { orient = it; store.orientation = it },
                 onRounded = { rounded = it; store.rounded = it },

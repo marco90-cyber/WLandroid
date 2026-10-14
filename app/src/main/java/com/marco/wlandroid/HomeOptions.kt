@@ -112,6 +112,8 @@ fun HomeOptionsScreen(
     radius: Int,
     orientation: Int,
     onOrientation: (Int) -> Unit,
+    landscapeFill: Boolean,
+    onLandscapeFill: (Boolean) -> Unit,
     onRounded: (Boolean) -> Unit,
     onRadius: (Int) -> Unit,
     isDefault: Boolean,
@@ -151,6 +153,26 @@ fun HomeOptionsScreen(
                 ) {
                     Text(label, color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
                     RadioButton(selected = orientation == value, onClick = { onOrientation(value); orientDialog = false })
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "In orizzontale",
+                color = Color(0xFF8AB4F8),
+                fontSize = 16.sp,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+            )
+            listOf("Tutto schermo" to true, "Spazi neri ai lati" to false).forEach { (label, v) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onLandscapeFill(v) }
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(label, color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
+                    RadioButton(selected = landscapeFill == v, onClick = { onLandscapeFill(v) })
                 }
             }
         }

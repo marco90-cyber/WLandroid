@@ -42,7 +42,10 @@ data class AppInfo(val label: String, val pkg: String, val cls: String, val icon
     val key: String get() = "$pkg/$cls"
 }
 
-const val COLUMNS = 4
+const val BASE_COLUMNS = 4
+
+/** Colonne attualmente disponibili: 4 in verticale, di più in orizzontale a tutto schermo. */
+var COLUMNS = 4
 
 fun isSpecialKey(k: String): Boolean =
     listOf("sys:", "hdr:", "live:", "widget:", "act:", "link:", "contact:", "cube:", "group:").any { k.startsWith(it) }
@@ -209,7 +212,7 @@ fun defaultTiles(ctx: Context, apps: List<AppInfo>): List<Tile> {
     fun section(title: String, vararg items: Pair<AppInfo?, Int>) {
         val found = items.filter { it.first != null }
         if (found.isEmpty()) return
-        out.add(Tile("hdr:$title", COLUMNS, 1))
+        out.add(Tile("hdr:$title", BASE_COLUMNS, 1))
         for ((a, w) in found) {
             if (a != null && used.add(a.key)) out.add(Tile(a.key, w, 1))
         }
@@ -217,7 +220,7 @@ fun defaultTiles(ctx: Context, apps: List<AppInfo>): List<Tile> {
     section("Contact", phone to 1, messages to 1, gmail to 1, contacts to 1)
     section("Camera & Photos", camera to 2, photos to 2)
 
-    out.add(Tile("hdr:Apps", COLUMNS, 1))
+    out.add(Tile("hdr:Apps", BASE_COLUMNS, 1))
     for (a in listOf(chrome, play)) if (a != null && used.add(a.key)) out.add(Tile(a.key, 1, 1))
     out.add(Tile("sys:apps", 1, 1))
     out.add(Tile(ADD_KEY, 1, 1))
@@ -253,7 +256,7 @@ class Store(ctx: Context) {
                 if (o.has("w")) {
                     Tile(
                         o.getString("k"),
-                        o.getInt("w").coerceIn(1, COLUMNS),
+                        o.getInt("w").coerceIn(1, 12),
                         o.getInt("h").coerceIn(1, 12),
                         if (o.has("c")) o.getInt("c") else null,
                         if (o.has("l")) o.getString("l") else null,
@@ -301,6 +304,10 @@ class Store(ctx: Context) {
     var orientation: Int
         get() = p.getInt("orientation", 0)
         set(v) = p.edit().putInt("orientation", v).apply()
+
+    var landscapeFill: Boolean
+        get() = p.getBoolean("landscapeFill", true)
+        set(v) = p.edit().putBoolean("landscapeFill", v).apply()
 
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)

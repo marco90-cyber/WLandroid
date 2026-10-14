@@ -91,6 +91,7 @@ fun StartScreen(
     accent: Color,
     editing: Boolean,
     locked: Boolean,
+    fill: Boolean,
     corner: Int,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
@@ -110,7 +111,7 @@ fun StartScreen(
     onAddMenu: () -> Unit
 ) {
     val ctx = LocalContext.current
-    val visible = tiles.filter { isSpecialKey(it.key) || apps.containsKey(it.key) }
+    val visible0 = tiles.filter { isSpecialKey(it.key) || apps.containsKey(it.key) }
     val tilesNow by rememberUpdatedState(tiles)
     val appsByPkg = remember(apps) { apps.values.associateBy { it.pkg } }
     var dragKey by remember { mutableStateOf<String?>(null) }
@@ -162,9 +163,24 @@ fun StartScreen(
         // le tile hanno sempre la dimensione che avrebbero in verticale (lato corto dello schermo)
         val shortSide = with(density) { minOf(ctx.resources.displayMetrics.widthPixels, ctx.resources.displayMetrics.heightPixels).toFloat() }
         val baseW = minOf(screenPx, shortSide)
-        val cellPx = (baseW - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
-        val gridW = 2 * padPx + COLUMNS * cellPx + (COLUMNS - 1) * gapPx
+        val cellPx = (baseW - 2 * padPx - (BASE_COLUMNS - 1) * gapPx) / BASE_COLUMNS
+        val cols = if (fill) {
+            maxOf(BASE_COLUMNS, ((screenPx - 2 * padPx + gapPx) / (cellPx + gapPx)).toInt())
+        } else {
+            BASE_COLUMNS
+        }
+        COLUMNS = cols
+        val gridW = 2 * padPx + cols * cellPx + (cols - 1) * gapPx
         val offX = ((screenPx - gridW) / 2f).coerceAtLeast(0f)
+        // i divisori occupano sempre tutta la larghezza; le altre tile restano dentro le colonne disponibili
+        val visible = visible0.map {
+            if (it.isHeader) {
+                it.copy(col = 0, w = cols)
+            } else {
+                val nw = minOf(it.w, cols)
+                it.copy(w = nw, col = it.col.coerceIn(0, cols - nw))
+            }
+        }
         val hdrPx = with(density) { 26.dp.toPx() }
         val btnPx = with(density) { 32.dp.toPx() }
 
