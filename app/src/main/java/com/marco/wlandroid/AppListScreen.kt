@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -166,7 +167,7 @@ fun AppListScreen(
                     start = 8.dp, end = 8.dp, top = 8.dp, bottom = 96.dp
                 )
             ) {
-                items(shown, key = { it.key }) { app -> cell(app) }
+                gridItems(shown, key = { it.key }) { app -> cell(app) }
             }
         } else {
             LazyColumn(
