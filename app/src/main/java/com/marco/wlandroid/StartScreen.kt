@@ -7,24 +7,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -36,18 +37,46 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
+
+/** Pallino bianco con icona, usato per le azioni della tile selezionata. */
+@Composable
+private fun RoundBtn(
+    icon: ImageVector,
+    tint: Color,
+    x: Float,
+    y: Float,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    Box(
+        Modifier
+            .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+            .zIndex(5f)
+            .size(32.dp)
+            .shadow(4.dp, CircleShape)
+            .clip(CircleShape)
+            .background(Color.White)
+            .then(modifier)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -70,9 +99,10 @@ fun StartScreen(
     onLiveClick: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onOpenContact: (String) -> Unit,
-    onRename: (Tile) -> Unit,
+    onOptions: (Tile) -> Unit,
     onAddMenu: () -> Unit
 ) {
+    val ctx = LocalContext.current
     val visible = tiles.filter { isSpecialKey(it.key) || apps.containsKey(it.key) }
     val packed = remember(visible) { packTiles(visible) }
     val placed = packed.first
@@ -94,6 +124,20 @@ fun StartScreen(
     var resizeH by remember { mutableIntStateOf(1) }
     val density = LocalDensity.current
 
+    // tile selezionata (pressione lunga): le altre si oscurano e compaiono i 4 pallini
+    var selected by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(editing) { if (!editing) selected = null }
+    fun select(k: String) {
+        selected = k
+        onEdit(true)
+    }
+    fun deselect() {
+        selected = null
+        onEdit(false)
+    }
+    val selectedTile = placed.firstOrNull { it.tile.key == selected }?.tile
+    val selTileNow by rememberUpdatedState(selectedTile)
+
     openGroup?.let { gk ->
         GroupDialog(
             name = data.extra(gk)?.optString("name").orEmpty(),
@@ -106,17 +150,16 @@ fun StartScreen(
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .pointerInput(editing) {
-                detectTapGestures(
-                    onTap = { if (editing) onEdit(false) },
-                    onLongPress = { if (!editing) onEdit(true) }
-                )
+            .pointerInput(selected) {
+                detectTapGestures(onTap = { if (selected != null) deselect() })
             }
     ) {
         val padPx = with(density) { 12.dp.toPx() }
         val gapPx = with(density) { 6.dp.toPx() }
-        val cellPx = (with(density) { maxWidth.toPx() } - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
+        val screenPx = with(density) { maxWidth.toPx() }
+        val cellPx = (screenPx - 2 * padPx - (COLUMNS - 1) * gapPx) / COLUMNS
         val hdrPx = with(density) { 26.dp.toPx() }
+        val btnPx = with(density) { 32.dp.toPx() }
         val totalHeight = with(density) {
             (2 * padPx + rows * (cellPx + gapPx) + hdrCount * (hdrPx + gapPx) - gapPx)
                 .coerceAtLeast(0f).toDp()
@@ -148,14 +191,17 @@ fun StartScreen(
                     val t = p.tile
                     key(t.key) {
                         val app = apps[t.key]
+                        val shownApp = if (app != null && t.label != null) app.copy(label = t.label) else app
                         val widgetId = if (t.key.startsWith("widget:")) t.key.removePrefix("widget:").toIntOrNull() else null
                         val r = rectOf(p)
                         val dragging = dragKey == t.key
                         val off = if (dragging) dragOffset else Offset.Zero
-                        val curTile by rememberUpdatedState(t)
+                        val sel = selected
+                        val isSel = sel == t.key
+                        val dimmed = sel != null && !isSel
 
-                        val interaction = if (editing) {
-                            Modifier.pointerInput(t.key, cellPx) {
+                        val interaction = when {
+                            isSel -> Modifier.pointerInput(t.key, cellPx) {
                                 detectDragGestures(
                                     onDragStart = {
                                         dragKey = t.key
@@ -192,8 +238,11 @@ fun StartScreen(
                                     }
                                 )
                             }
-                        } else {
-                            Modifier.combinedClickable(
+                            sel != null -> Modifier.combinedClickable(
+                                onClick = { deselect() },
+                                onLongClick = { select(t.key) }
+                            )
+                            else -> Modifier.combinedClickable(
                                 onClick = {
                                     val k = t.key
                                     when {
@@ -207,9 +256,11 @@ fun StartScreen(
                                         else -> onLiveClick(k)
                                     }
                                 },
-                                onLongClick = { onEdit(true) }
+                                onLongClick = { select(t.key) }
                             )
                         }
+
+                        val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else accent
 
                         Box(
                             Modifier
@@ -220,33 +271,39 @@ fun StartScreen(
                                 )
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
-                                    val s = if (dragging) 1.06f else if (editing) 0.95f else 1f
+                                    val s = if (dragging) 1.06f else 1f
                                     scaleX = s
                                     scaleY = s
                                 }
-                                .background(if (t.isHeader) Color(0xFF2E2E2E) else accent)
+                                .background(bg)
                                 .then(interaction)
                         ) {
                             when {
                                 t.isHeader -> HeaderLabel(headerName(t.key))
                                 t.key == "sys:add" -> AddTile(t.size)
-                                t.key.startsWith("sys:apps") -> AppsTile(t.size)
-                                t.key.startsWith("act:") ->
-                                    ActionTile(actionById(t.key.removePrefix("act:").substringBefore('#')), t.size)
+                                t.key.startsWith("sys:apps") -> AppsTile(t.size, t.label)
+                                t.key.startsWith("act:") -> ActionTile(
+                                    actionById(t.key.removePrefix("act:").substringBefore('#')),
+                                    t.size,
+                                    t.label
+                                )
                                 t.key.startsWith("link:") -> LinkTile(
-                                    data.extra(t.key)?.optString("name").orEmpty(),
+                                    t.label ?: data.extra(t.key)?.optString("name").orEmpty(),
                                     data.bitmap(data.extra(t.key)?.optString("icon")),
                                     t.size
                                 )
                                 t.key.startsWith("contact:") -> ContactTile(
-                                    data.extra(t.key)?.optString("name").orEmpty(),
+                                    t.label ?: data.extra(t.key)?.optString("name").orEmpty(),
                                     data.bitmap(data.extra(t.key)?.optString("photo")),
                                     t.size
                                 )
                                 t.key.startsWith("cube:") ->
                                     CubeTile(appsOf(t.key), cubeIndex[t.key] ?: 0, { cubeIndex[t.key] = it }, t.size)
-                                t.key.startsWith("group:") ->
-                                    GroupTile(data.extra(t.key)?.optString("name").orEmpty(), appsOf(t.key), t.size)
+                                t.key.startsWith("group:") -> GroupTile(
+                                    t.label ?: data.extra(t.key)?.optString("name").orEmpty(),
+                                    appsOf(t.key),
+                                    t.size
+                                )
                                 t.key == "live:clock" -> ClockTile(t.size)
                                 t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
                                 t.key == "live:photos" -> PhotoTile(photos, t.size)
@@ -255,12 +312,13 @@ fun StartScreen(
                                     widgets,
                                     widgetId,
                                     with(density) { r.width.toDp().value.toInt() },
-                                    with(density) { r.height.toDp().value.toInt() }
+                                    with(density) { r.height.toDp().value.toInt() },
+                                    onLongPress = { select(t.key) }
                                 )
-                                app != null -> AppTile(app, t.size, notifs[app.pkg])
+                                shownApp != null -> AppTile(shownApp, t.size, notifs[shownApp.pkg])
                             }
-                            if (editing && widgetId != null) {
-                                // intercetta i tocchi, così il widget non li "ruba" al trascinamento
+                            if (sel != null && widgetId != null) {
+                                // intercetta i tocchi, così il widget non li "ruba" a selezione e trascinamento
                                 Box(
                                     Modifier
                                         .fillMaxSize()
@@ -271,78 +329,18 @@ fun StartScreen(
                                         }
                                 )
                             }
-                            if (editing) {
-                                if (t.isHeader) Text(
-                                    "✎",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(end = 40.dp, top = 1.dp, bottom = 1.dp)
-                                        .clip(CircleShape)
+                            if (dimmed) {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
                                         .background(Color.Black.copy(alpha = 0.55f))
-                                        .clickable { onRename(t) }
-                                        .padding(horizontal = 8.dp, vertical = 1.dp)
-                                )
-                                if (t.key != "sys:add") Text(
-                                    "✕",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(if (t.isHeader) 1.dp else 4.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.55f))
-                                        .clickable { onRemove(t) }
-                                        .padding(horizontal = 8.dp, vertical = if (t.isHeader) 1.dp else 5.dp)
-                                )
-                                if (!t.isHeader) Text(
-                                    "⤢",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(4.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.55f))
-                                        .pointerInput(t.key, cellPx) {
-                                            var acc = Offset.Zero
-                                            val step = cellPx + gapPx
-                                            detectDragGestures(
-                                                onDragStart = {
-                                                    acc = Offset.Zero
-                                                    resizeKey = t.key
-                                                    resizeW = curTile.w
-                                                    resizeH = curTile.h
-                                                },
-                                                onDrag = { change, amount ->
-                                                    change.consume()
-                                                    acc += amount
-                                                    resizeW = ((curTile.w * step + acc.x) / step).roundToInt()
-                                                        .coerceIn(1, COLUMNS)
-                                                    resizeH = ((curTile.h * step + acc.y) / step).roundToInt()
-                                                        .coerceIn(1, 12)
-                                                },
-                                                onDragEnd = {
-                                                    val nw = resizeW
-                                                    val nh = resizeH
-                                                    onTiles(
-                                                        tilesNow.map {
-                                                            if (it.key == t.key) it.copy(w = nw, h = nh) else it
-                                                        }
-                                                    )
-                                                    resizeKey = null
-                                                },
-                                                onDragCancel = { resizeKey = null }
-                                            )
-                                        }
-                                        .padding(horizontal = 11.dp, vertical = 9.dp)
                                 )
                             }
                         }
                     }
                 }
-                // anteprima della nuova dimensione mentre si trascina la maniglia
+
+                // anteprima della nuova dimensione mentre si trascina il pallino di ridimensionamento
                 val rk = resizeKey
                 val me = if (rk != null) placed.firstOrNull { it.tile.key == rk } else null
                 if (me != null) {
@@ -357,6 +355,74 @@ fun StartScreen(
                             .background(Color.White.copy(alpha = 0.18f))
                             .border(2.dp, Color.White)
                     )
+                }
+
+                // i 4 pallini agli angoli della tile selezionata
+                val selP = placed.firstOrNull { it.tile.key == selected }
+                if (selP != null && dragKey == null) {
+                    val tile = selP.tile
+                    val rs = rectOf(selP)
+                    fun bx(cx: Float) = (cx - btnPx / 2).coerceIn(0f, (screenPx - btnPx).coerceAtLeast(0f))
+                    fun by(cy: Float) = (cy - btnPx / 2).coerceAtLeast(0f)
+                    val selApp = apps[tile.key]
+
+                    if (selApp != null) {
+                        RoundBtn(Icons.Outlined.Info, Color.Black, bx(rs.left), by(rs.top)) {
+                            openAppInfo(ctx, selApp.pkg)
+                        }
+                    }
+                    if (tile.key != "sys:add") {
+                        RoundBtn(Icons.Outlined.Delete, Color(0xFFD32F2F), bx(rs.right), by(rs.top)) {
+                            onRemove(tile)
+                            deselect()
+                        }
+                    }
+                    RoundBtn(Icons.Outlined.Settings, Color.Black, bx(rs.left), by(rs.bottom)) {
+                        onOptions(tile)
+                    }
+                    if (!tile.isHeader) {
+                        RoundBtn(
+                            Icons.Outlined.Fullscreen,
+                            Color.Black,
+                            bx(rs.right),
+                            by(rs.bottom),
+                            modifier = Modifier.pointerInput(tile.key, cellPx) {
+                                var acc = Offset.Zero
+                                val step = cellPx + gapPx
+                                detectDragGestures(
+                                    onDragStart = {
+                                        acc = Offset.Zero
+                                        resizeKey = selTileNow?.key
+                                        resizeW = selTileNow?.w ?: 1
+                                        resizeH = selTileNow?.h ?: 1
+                                    },
+                                    onDrag = { change, amount ->
+                                        change.consume()
+                                        acc += amount
+                                        val st = selTileNow
+                                        if (st != null) {
+                                            resizeW = ((st.w * step + acc.x) / step).roundToInt().coerceIn(1, COLUMNS)
+                                            resizeH = ((st.h * step + acc.y) / step).roundToInt().coerceIn(1, 12)
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val k = resizeKey
+                                        val nw = resizeW
+                                        val nh = resizeH
+                                        if (k != null) {
+                                            onTiles(
+                                                tilesNow.map {
+                                                    if (it.key == k) it.copy(w = nw, h = nh) else it
+                                                }
+                                            )
+                                        }
+                                        resizeKey = null
+                                    },
+                                    onDragCancel = { resizeKey = null }
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

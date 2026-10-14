@@ -2,6 +2,7 @@ package com.marco.wlandroid
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -267,4 +269,53 @@ fun MultiAppPicker(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
+}
+
+// ---------- Opzioni della singola tile ----------
+
+/** Colori in stile Windows Phone per le tile. */
+val TILE_COLORS: List<Int> = listOf(
+    0xFFA4C400, 0xFF60A917, 0xFF008A00, 0xFF00ABA9, 0xFF1BA1E2,
+    0xFF0050EF, 0xFF6A00FF, 0xFFAA00FF, 0xFFF472D0, 0xFFD80073,
+    0xFFA20025, 0xFFE51400, 0xFFFA6800, 0xFFF0A30A, 0xFFD8C100,
+    0xFF825A2C, 0xFF6D8764, 0xFF647687, 0xFF76608A, 0xFF87794E
+).map { it.toInt() }
+
+@Composable
+fun OptionsDialog(showLabel: Boolean, onStyle: () -> Unit, onLabel: () -> Unit, onDismiss: () -> Unit) {
+    Sheet("OPZIONI", onDismiss) {
+        Spacer(Modifier.height(8.dp))
+        SheetRow(Icons.Outlined.Palette, "Stile", onStyle)
+        if (showLabel) SheetRow(Icons.Outlined.TextFields, "Etichetta", onLabel)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun StyleDialog(current: Int?, onPick: (Int?) -> Unit, onDismiss: () -> Unit) {
+    Sheet("STILE", onDismiss) {
+        Spacer(Modifier.height(8.dp))
+        SheetRow(Icons.Outlined.FormatColorReset, "Colore predefinito") { onPick(null) }
+        Spacer(Modifier.height(8.dp))
+        TILE_COLORS.chunked(5).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
+                row.forEach { c ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(c))
+                            .then(
+                                if (current == c) Modifier.border(3.dp, Color.White, RoundedCornerShape(10.dp))
+                                else Modifier
+                            )
+                            .clickable { onPick(c) }
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
 }

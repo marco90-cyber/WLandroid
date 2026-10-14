@@ -1,6 +1,13 @@
 package com.marco.wlandroid
 
 import android.app.Activity
+import android.appwidget.AppWidgetHostView
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.view.MotionEvent
+import android.view.ViewConfiguration
+import android.widget.FrameLayout
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
@@ -22,7 +29,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
+import kotlin.math.abs
 
 const val REQ_BIND = 4241
 const val REQ_CONFIG = 4242
@@ -135,16 +145,64 @@ fun sizeForProvider(info: AppWidgetProviderInfo, density: Float): Pair<Int, Int>
     return cw to ch
 }
 
+/** Contenitore che intercetta la pressione lunga sul widget, così si può selezionare la tile. */
+class LongPressFrame(ctx: Context) : FrameLayout(ctx) {
+    var onLong: (() -> Unit)? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var fired = false
+    private var sx = 0f
+    private var sy = 0f
+    private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
+    private val fire = Runnable {
+        fired = true
+        onLong?.invoke()
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                fired = false
+                sx = ev.x
+                sy = ev.y
+                handler.postDelayed(fire, ViewConfiguration.getLongPressTimeout().toLong())
+            }
+            MotionEvent.ACTION_MOVE ->
+                if (!fired && (abs(ev.x - sx) > slop || abs(ev.y - sy) > slop)) handler.removeCallbacks(fire)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> handler.removeCallbacks(fire)
+        }
+        return fired
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+            handler.removeCallbacks(fire)
+            val was = fired
+            fired = false
+            return was
+        }
+        return fired
+    }
+}
+
 @Composable
-fun WidgetTile(ctl: WidgetController, id: Int, widthDp: Int, heightDp: Int) {
+fun WidgetTile(ctl: WidgetController, id: Int, widthDp: Int, heightDp: Int, onLongPress: () -> Unit) {
     val info = remember(id) { ctl.awm.getAppWidgetInfo(id) }
+    val lp by rememberUpdatedState(onLongPress)
     if (info == null) {
         Text("Widget non disponibile", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(10.dp))
     } else {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { ctx -> ctl.host.createView(ctx, id, info) },
-            update = { v -> v.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp) }
+            factory = { ctx ->
+                LongPressFrame(ctx).also { f ->
+                    f.addView(ctl.host.createView(ctx, id, info))
+                    f.onLong = { lp() }
+                }
+            },
+            update = { f ->
+                (f.getChildAt(0) as? AppWidgetHostView)
+                    ?.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+            }
         )
     }
 }

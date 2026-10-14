@@ -117,6 +117,9 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var showCubePicker by remember { mutableStateOf(false) }
     var showGroupPicker by remember { mutableStateOf(false) }
     var dividerTarget by remember { mutableStateOf<String?>(null) }
+    var optionsTarget by remember { mutableStateOf<String?>(null) }
+    var styleTarget by remember { mutableStateOf<String?>(null) }
+    var labelTarget by remember { mutableStateOf<String?>(null) }
     var weather by remember { mutableStateOf(store.weather) }
     var weatherStatus by remember { mutableStateOf<String?>(null) }
     var weatherTick by remember { mutableIntStateOf(0) }
@@ -317,10 +320,6 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     fun performAction(id: String) {
         when (id) {
             "apps" -> scope.launch { pager.animateScrollToPage(1) }
-            "edit" -> {
-                scope.launch { pager.animateScrollToPage(0) }
-                editing = true
-            }
             "settings" -> showSettings = true
             "notif" -> expandNotifications(ctx)
             "torch" -> toggleTorch(ctx)
@@ -459,7 +458,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                                 }
                             }
                         },
-                        onRename = { dividerTarget = it.key },
+                        onOptions = { optionsTarget = it.key },
                         onAddMenu = { showAddMenu = true }
                     )
                 } else {
@@ -483,6 +482,47 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onNotifAccess = { openNotifAccess() },
                 onResetLayout = { showSettings = false; showResetConfirm = true },
                 onDismiss = { showSettings = false }
+            )
+        }
+        optionsTarget?.let { k ->
+            OptionsDialog(
+                showLabel = supportsLabel(k, appMap.containsKey(k)),
+                onStyle = {
+                    optionsTarget = null
+                    styleTarget = k
+                },
+                onLabel = {
+                    optionsTarget = null
+                    if (k.startsWith("hdr:")) dividerTarget = k else labelTarget = k
+                },
+                onDismiss = { optionsTarget = null }
+            )
+        }
+        styleTarget?.let { k ->
+            StyleDialog(
+                current = tiles.firstOrNull { it.key == k }?.color,
+                onPick = { c ->
+                    styleTarget = null
+                    setTiles(tiles.map { if (it.key == k) it.copy(color = c) else it })
+                },
+                onDismiss = { styleTarget = null }
+            )
+        }
+        labelTarget?.let { k ->
+            val defLabel = when {
+                appMap.containsKey(k) -> appMap[k]?.label
+                k.startsWith("act:") -> actionById(k.removePrefix("act:").substringBefore('#'))?.label
+                k.startsWith("sys:apps") -> "Applicazioni"
+                else -> data.extra(k)?.optString("name")
+            }.orEmpty()
+            TextInputDialog(
+                title = "Etichetta",
+                initial = tiles.firstOrNull { it.key == k }?.label ?: defLabel,
+                onConfirm = { text ->
+                    labelTarget = null
+                    setTiles(tiles.map { if (it.key == k) it.copy(label = text) else it })
+                },
+                onDismiss = { labelTarget = null }
             )
         }
         if (showAddMenu) {

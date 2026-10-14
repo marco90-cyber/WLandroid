@@ -12,7 +12,6 @@ data class LAction(val id: String, val label: String, val icon: ImageVector)
 
 val LAUNCHER_ACTIONS = listOf(
     LAction("apps", "Elenco app", Icons.Outlined.Apps),
-    LAction("edit", "Modifica Start", Icons.Outlined.Edit),
     LAction("settings", "Impostazioni launcher", Icons.Outlined.Settings),
     LAction("notif", "Pannello notifiche", Icons.Outlined.Notifications),
     LAction("torch", "Torcia", Icons.Outlined.FlashlightOn),

@@ -186,7 +186,7 @@ fun SettingsDialog(
     )
 }
 
-private fun openAppInfo(ctx: Context, pkg: String) {
+fun openAppInfo(ctx: Context, pkg: String) {
     try {
         ctx.startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))

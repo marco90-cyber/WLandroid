@@ -391,7 +391,7 @@ fun AddTile(size: TileSize) {
 // ---------- Tile "Applicazioni" (apre l'elenco app) ----------
 
 @Composable
-fun AppsTile(size: TileSize) {
+fun AppsTile(size: TileSize, label: String? = null) {
     val small = size == TileSize.SMALL
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -414,7 +414,7 @@ fun AppsTile(size: TileSize) {
             }
         }
         Text(
-            "Applicazioni",
+            label ?: "Applicazioni",
             color = Color.White,
             fontSize = if (small) 11.sp else 13.sp,
             maxLines = 1,
@@ -447,7 +447,7 @@ fun HeaderLabel(text: String) {
 // ---------- Azione del launcher ----------
 
 @Composable
-fun ActionTile(action: LAction?, size: TileSize) {
+fun ActionTile(action: LAction?, size: TileSize, label: String? = null) {
     val small = size == TileSize.SMALL
     Box(Modifier.fillMaxSize()) {
         if (action != null) {
@@ -461,7 +461,7 @@ fun ActionTile(action: LAction?, size: TileSize) {
                     .size(if (small) 32.dp else 44.dp)
             )
             Text(
-                action.label,
+                label ?: action.label,
                 color = Color.White,
                 fontSize = if (small) 11.sp else 13.sp,
                 maxLines = 1,

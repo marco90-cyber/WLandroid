@@ -16,7 +16,13 @@ enum class TileSize(val w: Int, val h: Int) {
 
 
 /** key = "pkg/class" for apps, "live:clock" for the live clock tile. */
-data class Tile(val key: String, val w: Int, val h: Int) {
+data class Tile(
+    val key: String,
+    val w: Int,
+    val h: Int,
+    val color: Int? = null,
+    val label: String? = null
+) {
     /** Classe di dimensione usata dai contenuti per scegliere font e layout. */
     val size: TileSize
         get() = when {
@@ -45,6 +51,11 @@ fun headerName(key: String): String {
     val r = key.removePrefix("hdr:")
     return if (r.contains('|')) r.substringAfter('|') else r
 }
+
+/** True se il tile ha un'etichetta testuale che si può rinominare. */
+fun supportsLabel(key: String, isApp: Boolean): Boolean =
+    isApp || key.startsWith("act:") || key.startsWith("link:") || key.startsWith("contact:") ||
+        key.startsWith("group:") || key.startsWith("sys:apps") || key.startsWith("hdr:")
 
 fun newUid(): String = java.lang.Long.toString(System.nanoTime(), 36)
 const val ADD_KEY = "sys:add"
@@ -178,7 +189,13 @@ class Store(ctx: Context) {
             withAddTile((0 until a.length()).map {
                 val o = a.getJSONObject(it)
                 if (o.has("w")) {
-                    Tile(o.getString("k"), o.getInt("w").coerceIn(1, COLUMNS), o.getInt("h").coerceIn(1, 12))
+                    Tile(
+                        o.getString("k"),
+                        o.getInt("w").coerceIn(1, COLUMNS),
+                        o.getInt("h").coerceIn(1, 12),
+                        if (o.has("c")) o.getInt("c") else null,
+                        if (o.has("l")) o.getString("l") else null
+                    )
                 } else {
                     val sz = TileSize.valueOf(o.getString("s"))
                     Tile(o.getString("k"), sz.w, sz.h)
@@ -191,7 +208,12 @@ class Store(ctx: Context) {
 
     fun saveTiles(list: List<Tile>) {
         val a = JSONArray()
-        list.forEach { a.put(JSONObject().put("k", it.key).put("w", it.w).put("h", it.h)) }
+        list.forEach { t ->
+            val o = JSONObject().put("k", t.key).put("w", t.w).put("h", t.h)
+            t.color?.let { o.put("c", it) }
+            t.label?.let { o.put("l", it) }
+            a.put(o)
+        }
         p.edit().putString("tiles", a.toString()).apply()
     }
 
