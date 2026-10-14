@@ -47,7 +47,7 @@ class TileData(private val ctx: Context, private val store: Store) {
 
     fun cleanup(key: String) {
         val e = store.extra(key) ?: return
-        for (f in listOf("icon", "photo")) {
+        for (f in listOf("icon", "photo", "image")) {
             val name = e.optString(f)
             if (name.isNotEmpty()) deleteFile(name)
         }

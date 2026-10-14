@@ -121,6 +121,11 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var showMenu by remember { mutableStateOf(false) }
     var moveMode by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var extraTick by remember { mutableIntStateOf(0) }
+    var iconTarget by remember { mutableStateOf<String?>(null) }
+    var imageTarget by remember { mutableStateOf<String?>(null) }
+    var extraTarget by remember { mutableStateOf<String?>(null) }
+    var pendingPick by remember { mutableStateOf<Pair<String, String>?>(null) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -174,6 +179,36 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 if (bmp != null) {
                     data.saveBitmap(WALL_FILE, bmp)
                     wall = data.bitmap(WALL_FILE)
+                }
+            }
+        }
+    }
+
+    fun editExtra(k: String, block: (JSONObject) -> Unit) {
+        val ex = store.extra(k) ?: JSONObject()
+        block(ex)
+        store.putExtra(k, ex)
+        extraTick++
+    }
+    fun clearExtraImage(k: String, field: String) = editExtra(k) { ex ->
+        val old = ex.optString(field)
+        if (old.isNotEmpty()) data.removeFile(old)
+        ex.remove(field)
+    }
+    val tileImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val pp = pendingPick
+        pendingPick = null
+        if (uri != null && pp != null) {
+            scope.launch {
+                val bmp = withContext(Dispatchers.IO) { loadWallpaperBitmap(ctx, uri) }
+                if (bmp != null) {
+                    val fn = "g${pp.second}_${newUid()}.png"
+                    data.saveBitmap(fn, bmp)
+                    editExtra(pp.first) { ex ->
+                        val old = ex.optString(pp.second)
+                        if (old.isNotEmpty()) data.removeFile(old)
+                        ex.put(pp.second, fn)
+                    }
                 }
             }
         }
@@ -478,6 +513,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         moveMode = moveMode,
                         onPlusMenu = { showMenu = true },
                         fill = landFill,
+                        tick = extraTick,
                         corner = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0,
                         notifs = notifs,
                         notifConnected = notifConnected,
@@ -646,6 +682,16 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             )
         }
         optionsTarget?.let { k ->
+          if (k.startsWith("group:")) {
+            GroupOptionsDialog(
+                onStyle = { optionsTarget = null; styleTarget = k },
+                onIcon = { optionsTarget = null; iconTarget = k },
+                onLabel = { optionsTarget = null; labelTarget = k },
+                onImage = { optionsTarget = null; imageTarget = k },
+                onExtra = { optionsTarget = null; extraTarget = k },
+                onDismiss = { optionsTarget = null }
+            )
+          } else {
             OptionsDialog(
                 showLabel = supportsLabel(k, appMap.containsKey(k)),
                 onStyle = {
@@ -657,6 +703,40 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     if (k.startsWith("hdr:")) dividerTarget = k else labelTarget = k
                 },
                 onDismiss = { optionsTarget = null }
+            )
+          }
+        }
+        iconTarget?.let { k ->
+            ImageChoiceDialog(
+                title = "ICONA",
+                hasImage = !store.extra(k)?.optString("icon").isNullOrEmpty(),
+                onPick = {
+                    iconTarget = null
+                    pendingPick = k to "icon"
+                    try { tileImagePicker.launch("image/*") } catch (e: Exception) { }
+                },
+                onRemove = { iconTarget = null; clearExtraImage(k, "icon") },
+                onDismiss = { iconTarget = null }
+            )
+        }
+        imageTarget?.let { k ->
+            ImageChoiceDialog(
+                title = "IMMAGINE INTERA",
+                hasImage = !store.extra(k)?.optString("image").isNullOrEmpty(),
+                onPick = {
+                    imageTarget = null
+                    pendingPick = k to "image"
+                    try { tileImagePicker.launch("image/*") } catch (e: Exception) { }
+                },
+                onRemove = { imageTarget = null; clearExtraImage(k, "image") },
+                onDismiss = { imageTarget = null }
+            )
+        }
+        extraTarget?.let { k ->
+            GroupExtraDialog(
+                showLabel = store.extra(k)?.optBoolean("hideLabel", false) != true,
+                onShowLabel = { v -> editExtra(k) { it.put("hideLabel", !v) } },
+                onDismiss = { extraTarget = null }
             )
         }
         styleTarget?.let { k ->
@@ -728,7 +808,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     showGroupPicker = false
                     if (folder) {
                         val uid = newUid()
-                        store.putExtra("group:$uid", JSONObject().put("name", "").put("apps", JSONArray(keys)))
+                        store.putExtra("group:$uid", JSONObject().put("name", "Gruppo").put("apps", JSONArray(keys)))
                         addTile(Tile("group:$uid", 2, 1))
                     } else {
                         keys.forEach { k -> if (tiles.none { it.key == k }) addTile(Tile(k, 1, 1)) }

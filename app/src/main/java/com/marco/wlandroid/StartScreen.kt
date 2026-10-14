@@ -94,6 +94,7 @@ fun StartScreen(
     moveMode: Boolean,
     onPlusMenu: () -> Unit,
     fill: Boolean,
+    tick: Int,
     corner: Int,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
@@ -119,6 +120,7 @@ fun StartScreen(
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var openGroup by remember { mutableStateOf<String?>(null) }
+    var expandedGroup by remember { mutableStateOf<String?>(null) }
     val cubeIndex = remember { mutableStateMapOf<String, Int>() }
     fun appsOf(key: String): List<AppInfo> =
         data.extra(key)?.optJSONArray("apps")?.let { a ->
@@ -206,7 +208,24 @@ fun StartScreen(
         }
 
         // geometria "ferma" (senza anteprima), usata per capire dove si trova il dito
-        val restLayout = resolveAll(visible)
+        val expActive = expandedGroup != null && selected == null && !moveMode && dragKey == null && resizeKey == null
+        fun withExpansion(l: List<Tile>): List<Tile> {
+            val gk = expandedGroup
+            val g = if (expActive && gk != null) l.firstOrNull { it.key == gk } else null
+            if (g == null || gk == null) return l
+            val list = appsOf(gk)
+            val need = (list.size + cols - 1) / cols
+            val below = g.row + g.h
+            val shifted = l.map {
+                if (it.row >= below) it.copy(row = it.row + need)
+                else if (it.row + it.h > below) it.copy(h = it.h + need)
+                else it
+            }
+            return shifted + list.mapIndexed { i, a ->
+                Tile("gx|$gk|${a.key}", 1, 1, col = i % cols, row = below + i / cols)
+            }
+        }
+        val restLayout = withExpansion(resolveAll(visible))
         val committedTop = topsOf(restLayout, 8)
 
         val dk = dragKey
@@ -288,7 +307,7 @@ fun StartScreen(
                 }
                 for (t in layout) {
                     key(t.key) {
-                        val app = apps[t.key]
+                        val app = if (t.key.startsWith("gx|")) apps[t.key.substringAfterLast('|')] else apps[t.key]
                         val shownApp = if (app != null && t.label != null) app.copy(label = t.label) else app
                         val widgetId = if (t.key.startsWith("widget:")) t.key.removePrefix("widget:").toIntOrNull() else null
                         val r = rectIn(top, t)
@@ -351,17 +370,18 @@ fun StartScreen(
                                         k.startsWith("contact:") -> onOpenContact(k)
                                         k.startsWith("cube:") ->
                                             appsOf(k).getOrNull(cubeIndex[k] ?: 0)?.let { onOpen(it) }
-                                        k.startsWith("group:") -> openGroup = k
+                                        k.startsWith("group:") -> expandedGroup = if (expandedGroup == k) null else k
                                         else -> onLiveClick(k)
                                     }
                                 },
                                 onLongClick = {
-                                    if (t.key == ADD_KEY) onPlusMenu() else select(t.key)
+                                    if (t.key == ADD_KEY) onPlusMenu()
+                                    else if (!t.key.startsWith("gx|")) select(t.key)
                                 }
                             )
                         }
 
-                        val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else if (t.key == ADD_KEY) (if (locked) Color.Transparent else Color.Black) else accent
+                        val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else if (t.key == ADD_KEY) (if (locked) Color.Transparent else Color.Black) else if (expActive && expandedGroup == t.key) Color.Transparent else accent
 
                         Box(
                             Modifier
@@ -410,11 +430,19 @@ fun StartScreen(
                                 )
                                 t.key.startsWith("cube:") ->
                                     CubeTile(appsOf(t.key), cubeIndex[t.key] ?: 0, { cubeIndex[t.key] = it }, t.size)
-                                t.key.startsWith("group:") -> GroupTile(
-                                    t.label ?: data.extra(t.key)?.optString("name").orEmpty(),
-                                    appsOf(t.key),
-                                    t.size
-                                )
+                                t.key.startsWith("group:") -> {
+                                    val gex = data.extra(t.key)
+                                    GroupTile(
+                                        name = t.label ?: gex?.optString("name").orEmpty(),
+                                        apps = appsOf(t.key),
+                                        size = t.size,
+                                        color = t.color?.let { Color(it) } ?: accent,
+                                        expanded = expActive && expandedGroup == t.key,
+                                        icon = data.bitmap(gex?.optString("icon")),
+                                        image = data.bitmap(gex?.optString("image")),
+                                        showLabel = gex?.optBoolean("hideLabel", false) != true
+                                    )
+                                }
                                 t.key == "live:clock" -> ClockTile(t.size)
                                 t.key == "live:weather" -> WeatherTile(weather, weatherStatus, t.size)
                                 t.key == "live:photos" -> PhotoTile(photos, t.size)

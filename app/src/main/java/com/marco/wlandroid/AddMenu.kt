@@ -429,3 +429,50 @@ fun GroupPickerDialog(apps: List<AppInfo>, onConfirm: (List<String>, Boolean) ->
         }
     }
 }
+
+/** Opzioni di una tile gruppo (come in Square Home). */
+@Composable
+fun GroupOptionsDialog(
+    onStyle: () -> Unit,
+    onIcon: () -> Unit,
+    onLabel: () -> Unit,
+    onImage: () -> Unit,
+    onExtra: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Sheet("OPZIONI", onDismiss) {
+        Spacer(Modifier.height(8.dp))
+        SheetRow(Icons.Outlined.Palette, "Stile", onStyle)
+        SheetRow(Icons.Outlined.Face, "Icona", onIcon)
+        SheetRow(Icons.Outlined.TextFields, "Etichetta", onLabel)
+        SheetRow(Icons.Outlined.Fullscreen, "Immagine intera", onImage)
+        SheetRow(Icons.Outlined.MoreHoriz, "Opzioni extra", onExtra)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun ImageChoiceDialog(title: String, hasImage: Boolean, onPick: () -> Unit, onRemove: () -> Unit, onDismiss: () -> Unit) {
+    Sheet(title, onDismiss) {
+        SheetRow(Icons.Outlined.Image, "Scegli un'immagine", onPick)
+        if (hasImage) SheetRow(Icons.Outlined.Delete, "Rimuovi", onRemove)
+    }
+}
+
+@Composable
+fun GroupExtraDialog(showLabel: Boolean, onShowLabel: (Boolean) -> Unit, onDismiss: () -> Unit) {
+    Sheet("OPZIONI EXTRA", onDismiss) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { onShowLabel(!showLabel) }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(checked = showLabel, onCheckedChange = { onShowLabel(it) })
+            Spacer(Modifier.width(12.dp))
+            Text("Mostra etichetta", color = SheetText, fontSize = 20.sp)
+        }
+    }
+}

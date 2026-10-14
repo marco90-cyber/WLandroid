@@ -567,38 +567,83 @@ fun ContactTile(name: String, photo: ImageBitmap?, size: TileSize) {
 // ---------- Gruppo di tile ----------
 
 @Composable
-fun GroupTile(name: String, apps: List<AppInfo>, size: TileSize) {
-    BoxWithConstraints(Modifier.fillMaxSize().padding(4.dp)) {
-        val n = apps.size.coerceAtLeast(1)
-        val s = (kotlin.math.sqrt((maxWidth.value * maxHeight.value) / n) * 0.82f).coerceIn(10f, 40f)
-        val gap = 3f
-        val cols = ((maxWidth.value + gap) / (s + gap)).toInt().coerceAtLeast(1)
-        val rowsFit = ((maxHeight.value + gap) / (s + gap)).toInt().coerceAtLeast(1)
-        Column(
-            Modifier.align(Alignment.Center),
-            verticalArrangement = Arrangement.spacedBy(gap.dp)
-        ) {
-            apps.chunked(cols).take(rowsFit).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
-                    row.forEach { a -> Image(a.icon, a.label, Modifier.size(s.dp)) }
+fun GroupTile(
+    name: String,
+    apps: List<AppInfo>,
+    size: TileSize,
+    color: Color,
+    expanded: Boolean,
+    icon: ImageBitmap?,
+    image: ImageBitmap?,
+    showLabel: Boolean
+) {
+    val label = showLabel && name.isNotBlank()
+    @Composable
+    fun content(mod: Modifier) {
+        BoxWithConstraints(mod.background(color)) {
+            if (image != null) {
+                Image(
+                    image, null, Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else if (icon != null) {
+                Image(
+                    icon, null,
+                    Modifier
+                        .align(Alignment.Center)
+                        .size(minOf(maxWidth, maxHeight) * 0.5f)
+                )
+            } else {
+                val areaH = maxHeight.value - (if (label) 16f else 0f) - 8f
+                val areaW = maxWidth.value - 8f
+                val n = apps.size.coerceAtLeast(1)
+                val s = (kotlin.math.sqrt((areaW * areaH) / n) * 0.82f).coerceIn(8f, 40f)
+                val gap = 3f
+                val cols = ((areaW + gap) / (s + gap)).toInt().coerceAtLeast(1)
+                val rowsFit = ((areaH + gap) / (s + gap)).toInt().coerceAtLeast(1)
+                Column(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(gap.dp)
+                ) {
+                    apps.chunked(cols).take(rowsFit).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
+                            row.forEach { a -> Image(a.icon, a.label, Modifier.size(s.dp)) }
+                        }
+                    }
                 }
             }
+            if (label) {
+                Text(
+                    name,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 3.dp, vertical = 2.dp)
+                )
+            }
         }
-        if (name.isNotBlank()) {
-            Text(
-                name,
-                color = Color.White,
-                fontSize = 11.sp,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color(0x66000000))
-                    .padding(horizontal = 3.dp, vertical = 2.dp)
-            )
+    }
+    if (expanded) {
+        Row(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.Outlined.KeyboardArrowDown,
+                    null,
+                    tint = Color.White,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+            content(Modifier.weight(1f).fillMaxSize())
         }
+    } else {
+        content(Modifier.fillMaxSize())
     }
 }
 
