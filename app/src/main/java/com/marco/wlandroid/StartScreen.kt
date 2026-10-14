@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
@@ -89,6 +91,7 @@ fun StartScreen(
     accent: Color,
     editing: Boolean,
     locked: Boolean,
+    corner: Int,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
     weather: Weather?,
@@ -122,6 +125,7 @@ fun StartScreen(
     var resizeW by remember { mutableIntStateOf(1) }
     var resizeH by remember { mutableIntStateOf(1) }
     val density = LocalDensity.current
+    val shape = if (corner > 0) RoundedCornerShape(corner.dp) else RectangleShape
 
     // tile selezionata (pressione lunga): le altre si oscurano e compaiono i 4 pallini
     var selected by remember { mutableStateOf<String?>(null) }
@@ -254,6 +258,7 @@ fun StartScreen(
                         Modifier
                             .offset { IntOffset(gr.left.roundToInt(), gr.top.roundToInt()) }
                             .size(with(density) { gr.width.toDp() }, with(density) { gr.height.toDp() })
+                            .clip(shape)
                             .background(Color(gbg.red * 0.45f, gbg.green * 0.45f, gbg.blue * 0.45f, 1f))
                             .border(1.dp, Color.White.copy(alpha = 0.35f))
                     )
@@ -355,6 +360,7 @@ fun StartScreen(
                                     alpha = if (dragging) 0.92f else 1f
                                     shadowElevation = if (dragging) 24f else 0f
                                 }
+                                .clip(shape)
                                 .background(bg)
                                 .then(interaction)
                         ) {

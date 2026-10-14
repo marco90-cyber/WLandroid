@@ -297,6 +297,15 @@ class Store(ctx: Context) {
         get() = p.getBoolean("pinch", true)
         set(v) = p.edit().putBoolean("pinch", v).apply()
 
+    var rounded: Boolean
+        get() = p.getBoolean("rounded", false)
+        set(v) = p.edit().putBoolean("rounded", v).apply()
+
+    /** 0 = piccola, 1 = media, 2 = grande */
+    var radius: Int
+        get() = p.getInt("radius", 0)
+        set(v) = p.edit().putInt("radius", v).apply()
+
     var weather: Weather?
         get() = parseWeather(p.getString("weather", null))
         set(v) = p.edit().putString("weather", v?.toJson()).apply()

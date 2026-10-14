@@ -111,6 +111,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var dark by remember { mutableStateOf(store.dark) }
     var editing by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(store.locked) }
+    var rounded by remember { mutableStateOf(store.rounded) }
+    var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
     var showLayout by remember { mutableStateOf(false) }
     var showWallpaper by remember { mutableStateOf(false) }
@@ -454,6 +456,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         accent = accent,
                         editing = editing,
                         locked = locked,
+                        corner = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0,
                         notifs = notifs,
                         notifConnected = notifConnected,
                         weather = weather,
@@ -551,6 +554,10 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 dark = dark,
                 locked = locked,
                 pinch = pinchOn,
+                rounded = rounded,
+                radius = radius,
+                onRounded = { rounded = it; store.rounded = it },
+                onRadius = { radius = it; store.radius = it },
                 isDefault = remember(resumeTick, showSettings) { isDefaultHome(ctx) },
                 onAccent = { accent = it; store.accent = it.toArgb() },
                 onDark = { dark = it; store.dark = it },

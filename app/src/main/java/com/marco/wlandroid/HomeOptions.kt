@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 private val OptBg = Color(0xFF12141A)
 private val OptCircle = Color(0xFF2B2E36)
@@ -104,6 +106,10 @@ fun HomeOptionsScreen(
     dark: Boolean,
     locked: Boolean,
     pinch: Boolean,
+    rounded: Boolean,
+    radius: Int,
+    onRounded: (Boolean) -> Unit,
+    onRadius: (Int) -> Unit,
     isDefault: Boolean,
     onAccent: (Color) -> Unit,
     onDark: (Boolean) -> Unit,
@@ -196,18 +202,72 @@ fun HomeOptionsScreen(
                     )
                 }
                 "style" -> {
-                    Text("Colore delle tile", color = OptSoft, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                    AccentPalette.chunked(6).forEach { row ->
-                        Row(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
-                            row.forEach { c ->
-                                Box(
-                                    Modifier
-                                        .padding(end = 10.dp)
-                                        .size(42.dp)
-                                        .background(c)
-                                        .then(if (c == accent) Modifier.border(3.dp, Color.White) else Modifier)
-                                        .clickable { onAccent(c) }
-                                )
+                    Text("Effetto tile", color = Color(0xFF8AB4F8), fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    val cornerDp = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0
+                    Column(
+                        Modifier
+                            .padding(horizontal = 16.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Color(0xFF202229))
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(Modifier.size(150.dp).clip(RoundedCornerShape(18.dp)).background(Color.Black)) {
+                            Box(
+                                Modifier
+                                    .padding(start = 28.dp, top = 28.dp)
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(topStart = cornerDp.dp, bottomStart = cornerDp.dp, topEnd = cornerDp.dp, bottomEnd = cornerDp.dp))
+                                    .background(accent)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text("Anteprima", color = OptText, fontSize = 16.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Arrotondato", color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
+                            Switch(checked = rounded, onCheckedChange = onRounded)
+                        }
+                        if (rounded) {
+                            Spacer(Modifier.height(16.dp))
+                            Text("Raggio arrotondamento", color = OptText, fontSize = 20.sp, modifier = Modifier.fillMaxWidth())
+                            Slider(
+                                value = radius.toFloat(),
+                                onValueChange = { onRadius(it.roundToInt().coerceIn(0, 2)) },
+                                valueRange = 0f..2f,
+                                steps = 1
+                            )
+                            Row(Modifier.fillMaxWidth()) {
+                                listOf("Piccola", "Media", "Grande").forEachIndexed { i, l ->
+                                    Text(
+                                        l,
+                                        color = if (i == radius) Color(0xFF8AB4F8) else OptSoft,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = if (i == 0) androidx.compose.ui.text.style.TextAlign.Start
+                                        else if (i == 1) androidx.compose.ui.text.style.TextAlign.Center
+                                        else androidx.compose.ui.text.style.TextAlign.End
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text("Colore", color = OptText, fontSize = 20.sp, modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(8.dp))
+                        AccentPalette.chunked(6).forEach { row ->
+                            Row(Modifier.padding(vertical = 4.dp)) {
+                                row.forEach { c ->
+                                    Box(
+                                        Modifier
+                                            .padding(end = 8.dp)
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(cornerDp.coerceAtMost(14).dp))
+                                            .background(c)
+                                            .then(if (c == accent) Modifier.border(3.dp, Color.White) else Modifier)
+                                            .clickable { onAccent(c) }
+                                    )
+                                }
                             }
                         }
                     }
