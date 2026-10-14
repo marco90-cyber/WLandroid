@@ -111,6 +111,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var dark by remember { mutableStateOf(store.dark) }
     var editing by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(store.locked) }
+    var pinchOn by remember { mutableStateOf(store.pinch) }
     var showLayout by remember { mutableStateOf(false) }
     var showWallpaper by remember { mutableStateOf(false) }
     var wall by remember { mutableStateOf(data.bitmap(WALL_FILE)) }
@@ -432,7 +433,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 .background(bg)
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .pinchIn(!showLayout && pager.currentPage == 0 && !editing) { showLayout = true }
+                .pinchIn(pinchOn && !showLayout && pager.currentPage == 0 && !editing) { showLayout = true }
         ) {
             HorizontalPager(
                 state = pager,
@@ -545,14 +546,20 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             )
         }
         if (showSettings) {
-            SettingsDialog(
+            HomeOptionsScreen(
                 accent = accent,
                 dark = dark,
+                locked = locked,
+                pinch = pinchOn,
+                isDefault = remember(resumeTick, showSettings) { isDefaultHome(ctx) },
                 onAccent = { accent = it; store.accent = it.toArgb() },
                 onDark = { dark = it; store.dark = it },
+                onLocked = { locked = it; store.locked = it; editing = false },
+                onPinch = { pinchOn = it; store.pinch = it },
+                onSetDefault = { chooseDefaultHome(ctx) },
                 onNotifAccess = { openNotifAccess() },
-                onResetLayout = { showSettings = false; showResetConfirm = true },
-                onDismiss = { showSettings = false }
+                onReset = { showSettings = false; showResetConfirm = true },
+                onClose = { showSettings = false }
             )
         }
         optionsTarget?.let { k ->

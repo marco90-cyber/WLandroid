@@ -1,0 +1,241 @@
+package com.marco.wlandroid
+
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Gesture
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+private val OptBg = Color(0xFF12141A)
+private val OptCircle = Color(0xFF2B2E36)
+private val OptText = Color(0xFFE3E3E8)
+private val OptSoft = Color(0xFFA8AAB4)
+
+fun isDefaultHome(ctx: Context): Boolean = try {
+    val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+    ctx.packageManager.resolveActivity(i, 0)?.activityInfo?.packageName == ctx.packageName
+} catch (e: Exception) {
+    false
+}
+
+fun chooseDefaultHome(ctx: Context) {
+    try {
+        ctx.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        try {
+            ctx.startActivity(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
+        }
+    }
+}
+
+@Composable
+private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClick: () -> Unit, trailing: @Composable () -> Unit = {}) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(48.dp).clip(CircleShape).background(OptCircle), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = OptText, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(20.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, color = OptText, fontSize = 20.sp)
+            if (sub != null) Text(sub, color = OptSoft, fontSize = 13.sp)
+        }
+        trailing()
+    }
+}
+
+@Composable
+fun HomeOptionsScreen(
+    accent: Color,
+    dark: Boolean,
+    locked: Boolean,
+    pinch: Boolean,
+    isDefault: Boolean,
+    onAccent: (Color) -> Unit,
+    onDark: (Boolean) -> Unit,
+    onLocked: (Boolean) -> Unit,
+    onPinch: (Boolean) -> Unit,
+    onSetDefault: () -> Unit,
+    onNotifAccess: () -> Unit,
+    onReset: () -> Unit,
+    onClose: () -> Unit
+) {
+    var page by remember { mutableStateOf<String?>(null) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    BackHandler(true) { if (page != null) page = null else onClose() }
+    val title = when (page) {
+        "ui" -> "Comportamento e interfaccia"
+        "live" -> "Tile dinamica"
+        "style" -> "Dimensioni e stile"
+        "gest" -> "Tasti e gesture"
+        "info" -> "Informazioni"
+        else -> "Opzioni home"
+    }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(OptBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
+    ) {
+        Box(
+            Modifier
+                .padding(start = 8.dp, top = 8.dp)
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable { if (page != null) page = null else onClose() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, tint = OptText)
+        }
+        Text(
+            title,
+            color = Color.White,
+            fontSize = 30.sp,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+        )
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            when (page) {
+                null -> {
+                    if (!isDefault) {
+                        Row(
+                            Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Color(0xFF990010))
+                                .clickable(onClick = onSetDefault)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier.size(44.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
+                                contentAlignment = Alignment.Center
+                            ) { Icon(Icons.Outlined.Warning, null, tint = Color(0xFFFFB4AB)) }
+                            Spacer(Modifier.width(20.dp))
+                            Text("Imposta come Home predefinita", color = Color.White, fontSize = 19.sp)
+                        }
+                    } else {
+                        OptRow(Icons.Outlined.Warning, "Home predefinita", "WLandroid è la tua home attuale", onSetDefault)
+                    }
+                    OptRow(Icons.Outlined.Tune, "Comportamento e interfaccia", null, { page = "ui" })
+                    OptRow(Icons.Outlined.Notifications, "Tile dinamica", null, { page = "live" })
+                    OptRow(Icons.Outlined.Palette, "Dimensioni e stile", null, { page = "style" })
+                    OptRow(Icons.Outlined.Gesture, "Tasti e gesture", null, { page = "gest" })
+                    OptRow(Icons.Outlined.Info, "Informazioni", null, { page = "info" })
+                }
+                "ui" -> {
+                    OptRow(Icons.Outlined.DarkMode, "Tema scuro", null, { onDark(!dark) }) {
+                        Switch(checked = dark, onCheckedChange = onDark)
+                    }
+                    OptRow(Icons.Outlined.Lock, "Blocca layout", "Impedisce di modificare le tile", { onLocked(!locked) }) {
+                        Switch(checked = locked, onCheckedChange = onLocked)
+                    }
+                }
+                "live" -> {
+                    OptRow(
+                        Icons.Outlined.Notifications,
+                        "Accesso alle notifiche",
+                        "Serve alle tile Notifiche e ai badge sulle app",
+                        onNotifAccess
+                    )
+                }
+                "style" -> {
+                    Text("Colore delle tile", color = OptSoft, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    AccentPalette.chunked(6).forEach { row ->
+                        Row(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                            row.forEach { c ->
+                                Box(
+                                    Modifier
+                                        .padding(end = 10.dp)
+                                        .size(42.dp)
+                                        .background(c)
+                                        .then(if (c == accent) Modifier.border(3.dp, Color.White) else Modifier)
+                                        .clickable { onAccent(c) }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OptRow(Icons.Outlined.RestartAlt, "Ripristina Start predefinita", null, onReset)
+                }
+                "gest" -> {
+                    OptRow(
+                        Icons.Outlined.Gesture,
+                        "Pizzico per il Layout",
+                        "Avvicina due dita sulla Start",
+                        { onPinch(!pinch) }
+                    ) { Switch(checked = pinch, onCheckedChange = onPinch) }
+                }
+                "info" -> {
+                    val ver = try {
+                        ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    Text(
+                        "WLandroid $ver\nLauncher in stile Windows Phone",
+                        color = OptText,
+                        fontSize = 17.sp,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}

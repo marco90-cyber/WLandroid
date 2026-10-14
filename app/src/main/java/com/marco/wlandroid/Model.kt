@@ -293,6 +293,10 @@ class Store(ctx: Context) {
         get() = p.getBoolean("locked", false)
         set(v) = p.edit().putBoolean("locked", v).apply()
 
+    var pinch: Boolean
+        get() = p.getBoolean("pinch", true)
+        set(v) = p.edit().putBoolean("pinch", v).apply()
+
     var weather: Weather?
         get() = parseWeather(p.getString("weather", null))
         set(v) = p.edit().putString("weather", v?.toJson()).apply()
