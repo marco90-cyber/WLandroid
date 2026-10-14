@@ -88,6 +88,7 @@ fun StartScreen(
     apps: Map<String, AppInfo>,
     accent: Color,
     editing: Boolean,
+    locked: Boolean,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
     weather: Weather?,
@@ -126,6 +127,7 @@ fun StartScreen(
     var selected by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(editing) { if (!editing) selected = null }
     fun select(k: String) {
+        if (locked) return
         selected = k
         onEdit(true)
     }
@@ -295,7 +297,7 @@ fun StartScreen(
                                 onClick = {
                                     val k = t.key
                                     when {
-                                        k == "sys:add" -> onAddMenu()
+                                        k == "sys:add" -> { if (!locked) onAddMenu() }
                                         app != null -> onOpen(app)
                                         k.startsWith("link:") -> onOpenLink(k)
                                         k.startsWith("contact:") -> onOpenContact(k)

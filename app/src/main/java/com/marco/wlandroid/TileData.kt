@@ -35,6 +35,8 @@ class TileData(private val ctx: Context, private val store: Store) {
         }
     }
 
+    fun removeFile(file: String) = deleteFile(file)
+
     private fun deleteFile(file: String) {
         try {
             File(ctx.filesDir, file).delete()

@@ -73,7 +73,7 @@ private val ADD_ENTRIES = listOf(
 
 /** Pannello scuro con angoli arrotondati ancorato in basso, con il titolo in una "pillola" grigia. */
 @Composable
-private fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
             Modifier
@@ -125,7 +125,7 @@ private fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable Col
 }
 
 @Composable
-private fun SheetRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+internal fun SheetRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

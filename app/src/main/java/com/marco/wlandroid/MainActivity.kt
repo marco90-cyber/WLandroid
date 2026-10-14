@@ -56,6 +56,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+private const val WALL_FILE = "home_wall.png"
+
 class MainActivity : ComponentActivity() {
     private var homeTick by mutableIntStateOf(0)
     private var resumeTick by mutableIntStateOf(0)
@@ -108,6 +110,10 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var accent by remember { mutableStateOf(Color(store.accent)) }
     var dark by remember { mutableStateOf(store.dark) }
     var editing by remember { mutableStateOf(false) }
+    var locked by remember { mutableStateOf(store.locked) }
+    var showLayout by remember { mutableStateOf(false) }
+    var showWallpaper by remember { mutableStateOf(false) }
+    var wall by remember { mutableStateOf(data.bitmap(WALL_FILE)) }
     var showSettings by remember { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
@@ -148,6 +154,18 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
         }
     }
 
+    val wallPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val bmp = withContext(Dispatchers.IO) { loadWallpaperBitmap(ctx, uri) }
+                if (bmp != null) {
+                    data.saveBitmap(WALL_FILE, bmp)
+                    wall = data.bitmap(WALL_FILE)
+                }
+            }
+        }
+    }
+
     LaunchedEffect(resumeTick) {
         apps = withContext(Dispatchers.Default) { loadApps(ctx) }
         hasLoc = hasLocationPermission(ctx)
@@ -158,7 +176,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             pager.animateScrollToPage(0)
         }
     }
-    BackHandler(editing || pager.currentPage == 1) {
+    BackHandler(showLayout) { showLayout = false }
+    BackHandler(!showLayout && (editing || pager.currentPage == 1)) {
         if (editing) editing = false else scope.launch { pager.animateScrollToPage(0) }
     }
 
@@ -413,6 +432,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 .background(bg)
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .pinchIn(!showLayout && pager.currentPage == 0 && !editing) { showLayout = true }
         ) {
             HorizontalPager(
                 state = pager,
@@ -420,11 +440,19 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 if (page == 0) {
+                  Box(Modifier.fillMaxSize()) {
+                    wall?.let {
+                        androidx.compose.foundation.Image(
+                            it, null, Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
                     StartScreen(
                         tiles = tiles,
                         apps = appMap,
                         accent = accent,
                         editing = editing,
+                        locked = locked,
                         notifs = notifs,
                         notifConnected = notifConnected,
                         weather = weather,
@@ -463,6 +491,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         onOptions = { optionsTarget = it.key },
                         onAddMenu = { showAddMenu = true }
                     )
+                  }
                 } else {
                     AppListScreen(
                         apps = apps,
@@ -474,6 +503,46 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     )
                 }
             }
+        }
+        if (showLayout) {
+            LayoutOverview(
+                tiles = tiles,
+                accent = accent,
+                wallpaper = wall,
+                locked = locked,
+                onClose = { showLayout = false },
+                onApps = {
+                    showLayout = false
+                    scope.launch { pager.animateScrollToPage(1) }
+                },
+                onOptions = { showSettings = true },
+                onWallpaper = { showWallpaper = true },
+                onToggleLock = {
+                    locked = !locked
+                    store.locked = locked
+                    editing = false
+                },
+                onReset = { showResetConfirm = true },
+                onTheme = { showSettings = true }
+            )
+        }
+        if (showWallpaper) {
+            WallpaperDialog(
+                hasWallpaper = wall != null,
+                onPick = {
+                    showWallpaper = false
+                    try {
+                        wallPicker.launch("image/*")
+                    } catch (e: Exception) {
+                    }
+                },
+                onRemove = {
+                    showWallpaper = false
+                    data.removeFile(WALL_FILE)
+                    wall = null
+                },
+                onDismiss = { showWallpaper = false }
+            )
         }
         if (showSettings) {
             SettingsDialog(
