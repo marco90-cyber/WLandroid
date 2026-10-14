@@ -357,7 +357,7 @@ fun StartScreen(
                             )
                         }
 
-                        val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else accent
+                        val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else if (t.key == ADD_KEY) Color.Black else accent
 
                         Box(
                             Modifier
@@ -387,7 +387,7 @@ fun StartScreen(
                         ) {
                             when {
                                 t.isHeader -> HeaderLabel(headerName(t.key))
-                                t.key == "sys:add" -> AddTile(t.size)
+                                t.key == "sys:add" -> AddTile(t.size, corner)
                                 t.key.startsWith("sys:apps") -> AppsTile(t.size, t.label)
                                 t.key.startsWith("act:") -> ActionTile(
                                     actionById(t.key.removePrefix("act:").substringBefore('#')),

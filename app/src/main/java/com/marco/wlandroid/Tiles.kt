@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -370,21 +371,53 @@ fun NotifSummaryTile(
 // ---------- Tile fissa "+" ----------
 
 @Composable
-fun AddTile(size: TileSize) {
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+fun AddTile(size: TileSize, corner: Int = 0) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val r = corner.dp.toPx()
+            val stroke = 7.dp.toPx().coerceAtMost(size.minDimension / 4f)
+            val outer = androidx.compose.ui.graphics.Path().apply {
+                addRoundRect(
+                    androidx.compose.ui.geometry.RoundRect(
+                        0f, 0f, this@Canvas.size.width, this@Canvas.size.height,
+                        androidx.compose.ui.geometry.CornerRadius(r, r)
+                    )
+                )
+            }
+            val ri = (r - stroke).coerceAtLeast(0f)
+            val inner = androidx.compose.ui.graphics.Path().apply {
+                addRoundRect(
+                    androidx.compose.ui.geometry.RoundRect(
+                        stroke, stroke, this@Canvas.size.width - stroke, this@Canvas.size.height - stroke,
+                        androidx.compose.ui.geometry.CornerRadius(ri, ri)
+                    )
+                )
+            }
+            val ring = androidx.compose.ui.graphics.Path.combine(
+                androidx.compose.ui.graphics.PathOperation.Difference, outer, inner
+            )
+            clipPath(ring) {
+                val gap = 5.dp.toPx()
+                val w = this@Canvas.size.width
+                val h = this@Canvas.size.height
+                var x = -h
+                while (x < w) {
+                    drawLine(
+                        Color(0xFFF0A30A),
+                        androidx.compose.ui.geometry.Offset(x, h),
+                        androidx.compose.ui.geometry.Offset(x + h, 0f),
+                        strokeWidth = 2.dp.toPx()
+                    )
+                    x += gap
+                }
+            }
+        }
         Text(
             "+",
             color = Color.White,
             fontSize = if (size == TileSize.SMALL) 34.sp else 56.sp,
             fontWeight = FontWeight.Light
         )
-        if (size != TileSize.SMALL) {
-            Text("Aggiungi", color = Color.White, fontSize = 13.sp)
-        }
     }
 }
 

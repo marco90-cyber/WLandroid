@@ -65,10 +65,8 @@ private val ADD_ENTRIES = listOf(
     AddEntry("action", "Azione del launcher", Icons.Outlined.Dashboard),
     AddEntry("widget", "Widget", Icons.Outlined.Widgets),
     AddEntry("divider", "Divisore", Icons.Outlined.UnfoldMore),
-    AddEntry("cube", "Cubo", Icons.Outlined.ViewInAr),
     AddEntry("group", "Gruppo di tile", Icons.Outlined.GridView),
-    AddEntry("drawer", "Cassetto app", Icons.Outlined.Apps),
-    AddEntry("contact", "Contatti", Icons.Outlined.Contacts)
+    AddEntry("drawer", "Cassetto app", Icons.Outlined.Apps)
 )
 
 /** Pannello scuro con angoli arrotondati ancorato in basso, con il titolo in una "pillola" grigia. */
