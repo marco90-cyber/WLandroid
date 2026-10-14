@@ -191,6 +191,7 @@ fun LayoutOverview(
                         }
                         for (t in shown) {
                             if (t.row < 0 || t.col < 0) continue
+                            if (t.key == ADD_KEY && locked) continue
                             val x = pad + t.col * (cell + gap)
                             val w = t.w * cell + (t.w - 1) * gap
                             val y = top[t.row.coerceIn(0, maxRow)]
