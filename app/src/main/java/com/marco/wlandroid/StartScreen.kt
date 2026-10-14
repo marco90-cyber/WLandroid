@@ -179,10 +179,11 @@ fun StartScreen(
         }
 
         // geometria "ferma" (senza anteprima), usata per capire dove si trova il dito
-        val committedTop = topsOf(visible, 8)
+        val restLayout = resolveAll(visible)
+        val committedTop = topsOf(restLayout, 8)
 
         val dk = dragKey
-        val dragTile = if (dk != null) visible.firstOrNull { it.key == dk } else null
+        val dragTile = if (dk != null) restLayout.firstOrNull { it.key == dk } else null
         var target: Pair<Int, Int>? = null
         var dragOrigin: Rect? = null
         if (dragTile != null) {
@@ -208,21 +209,30 @@ fun StartScreen(
         val org = dragOrigin
 
         // disposizione mostrata: durante il trascinamento le altre tile si spostano per fare spazio
+        val rk0 = resizeKey
         val layout = if (dragTile != null && tgt != null) {
             resolveLayout(
                 visible.map { if (it.key == dragTile.key) it.copy(col = tgt.first, row = tgt.second) else it },
                 dragTile.key
             )
+        } else if (rk0 != null) {
+            resolveLayout(
+                visible.map {
+                    if (it.key == rk0) it.copy(w = resizeW, h = resizeH, col = minOf(it.col, COLUMNS - resizeW)) else it
+                },
+                rk0
+            )
         } else {
-            visible
+            restLayout
         }
         val layoutNow by rememberUpdatedState(layout)
         val top = topsOf(layout, 0)
+        val restTop = topsOf(restLayout, 0)
         val totalHeight = with(density) {
             (top[top.size - 1] - gapPx + padPx + (if (dragTile != null) 2 * (cellPx + gapPx) else 0f))
                 .coerceAtLeast(0f).toDp()
         }
-        val selectedTile = layout.firstOrNull { it.key == selected }
+        val selectedTile = restLayout.firstOrNull { it.key == selected }
         val selTileNow by rememberUpdatedState(selectedTile)
 
         Column(
@@ -272,9 +282,19 @@ fun StartScreen(
                                         dragOffset = Offset.Zero
                                     },
                                     onDragEnd = {
-                                        if (dragKey != null) {
-                                            val moved = layoutNow.associateBy { it.key }
-                                            onTiles(tilesNow.map { moved[it.key] ?: it })
+                                        val dkNow = dragKey
+                                        if (dkNow != null) {
+                                            val mt = layoutNow.firstOrNull { it.key == dkNow }
+                                            if (mt != null) {
+                                                onTiles(
+                                                    toFront(
+                                                        tilesNow.map {
+                                                            if (it.key == dkNow) it.copy(col = mt.col, row = mt.row) else it
+                                                        },
+                                                        dkNow
+                                                    )
+                                                )
+                                            }
                                         }
                                         dragKey = null
                                         dragOffset = Offset.Zero
@@ -405,12 +425,10 @@ fun StartScreen(
                 val me = if (rk != null) layout.firstOrNull { it.key == rk } else null
                 if (me != null) {
                     val r0 = rectIn(top, me)
-                    val pw = resizeW * cellPx + (resizeW - 1) * gapPx
-                    val ph = resizeH * cellPx + (resizeH - 1) * gapPx
                     Box(
                         Modifier
                             .offset { IntOffset(r0.left.roundToInt(), r0.top.roundToInt()) }
-                            .size(with(density) { pw.toDp() }, with(density) { ph.toDp() })
+                            .size(with(density) { r0.width.toDp() }, with(density) { r0.height.toDp() })
                             .zIndex(2f)
                             .background(Color.White.copy(alpha = 0.18f))
                             .border(2.dp, Color.White)
@@ -418,10 +436,10 @@ fun StartScreen(
                 }
 
                 // i 4 pallini agli angoli della tile selezionata
-                val selP = layout.firstOrNull { it.key == selected }
+                val selP = restLayout.firstOrNull { it.key == selected }
                 if (selP != null && dragKey == null) {
                     val tile = selP
-                    val rs = rectIn(top, selP)
+                    val rs = rectIn(restTop, selP)
                     fun bx(cx: Float) = (cx - btnPx / 2).coerceIn(0f, (screenPx - btnPx).coerceAtLeast(0f))
                     fun by(cy: Float) = (cy - btnPx / 2).coerceAtLeast(0f)
                     val selApp = apps[tile.key]
@@ -477,7 +495,7 @@ fun StartScreen(
                                                     it
                                                 }
                                             }
-                                            onTiles(resolveLayout(resized, k))
+                                            onTiles(toFront(resized, k))
                                         }
                                         resizeKey = null
                                     },

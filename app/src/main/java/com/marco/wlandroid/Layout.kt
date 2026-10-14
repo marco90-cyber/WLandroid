@@ -172,19 +172,20 @@ fun LayoutOverview(
                     if (wallpaper != null) {
                         Image(wallpaper, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     }
+                    val shown = resolveAll(tiles)
                     Canvas(Modifier.fillMaxSize().clipToBounds()) {
                         val pad = size.width * 0.03f
                         val gap = size.width * 0.015f
                         val cell = (size.width - 2 * pad - (COLUMNS - 1) * gap) / COLUMNS
                         val hdr = cell * 0.3f
-                        val headerRows = tiles.filter { it.isHeader }.map { it.row }.toSet()
-                        val maxRow = tiles.maxOfOrNull { it.row + it.h } ?: 0
+                        val headerRows = shown.filter { it.isHeader }.map { it.row }.toSet()
+                        val maxRow = shown.maxOfOrNull { it.row + it.h } ?: 0
                         val top = FloatArray(maxRow + 1)
                         top[0] = pad
                         for (r in 0 until maxRow) {
                             top[r + 1] = top[r] + (if (r in headerRows) hdr else cell) + gap
                         }
-                        for (t in tiles) {
+                        for (t in shown) {
                             if (t.row < 0 || t.col < 0) continue
                             val x = pad + t.col * (cell + gap)
                             val w = t.w * cell + (t.w - 1) * gap

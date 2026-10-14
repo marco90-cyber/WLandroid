@@ -143,17 +143,33 @@ fun resolveLayout(tiles: List<Tile>, movedKey: String): List<Tile> {
     return tiles.map { result[it.key] ?: it }
 }
 
+/** Mette la tile `key` in testa alla lista: è quella con la priorità quando due tile si sovrappongono. */
+fun toFront(tiles: List<Tile>, key: String): List<Tile> {
+    val t = tiles.firstOrNull { it.key == key } ?: return tiles
+    return listOf(t) + tiles.filter { it.key != key }
+}
+
+/**
+ * Posizioni mostrate: le posizioni salvate sono quelle "volute"; le tile sovrapposte (la prima della
+ * lista ha la priorità) vengono spinte in basso solo a video, e tornano al loro posto appena si libera spazio.
+ */
+fun resolveAll(tiles: List<Tile>): List<Tile> {
+    val first = tiles.firstOrNull() ?: return tiles
+    return resolveLayout(tiles, first.key)
+}
+
 /** Aggiunge una nuova tile nel primo spazio libero a partire dal "+", poi sposta il "+" dopo di essa. */
 fun placeNew(tiles: List<Tile>, t: Tile): List<Tile> {
-    val plus = tiles.firstOrNull { it.key == ADD_KEY }
-    val base = tiles.filter { it.key != ADD_KEY }
+    val shown = resolveAll(tiles)
+    val plus = shown.firstOrNull { it.key == ADD_KEY }
+    val base = shown.filter { it.key != ADD_KEY }
     val bottom = base.maxOfOrNull { it.row + it.h } ?: 0
     val (sc, sr) = if (plus != null && plus.col >= 0) plus.col to plus.row else 0 to bottom
     val (c, r) = findFree(base, t.w, t.h, sr, sc)
     val placed = t.copy(col = c, row = r)
-    val withNew = base + placed
-    val (pc, pr) = findFree(withNew, 1, 1, r, c + t.w)
-    return withNew + (plus ?: Tile(ADD_KEY, 1, 1)).copy(col = pc, row = pr)
+    val (pc, pr) = findFree(base + placed, 1, 1, r, c + t.w)
+    val others = tiles.filter { it.key != ADD_KEY && it.key != placed.key }
+    return listOf(placed) + others + (plus ?: Tile(ADD_KEY, 1, 1)).copy(col = pc, row = pr)
 }
 
 // ---------- Start predefinita ----------
