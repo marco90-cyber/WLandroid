@@ -115,6 +115,8 @@ fun HomeOptionsScreen(
     radius: Int,
     orientation: Int,
     onOrientation: (Int) -> Unit,
+    appearance: Int,
+    onAppearance: (Int) -> Unit,
     appGrid: Boolean,
     onAppGrid: (Boolean) -> Unit,
     landscapeFill: Boolean,
@@ -261,6 +263,16 @@ fun HomeOptionsScreen(
                     )
                 }
                 "style" -> {
+                    Text("Aspetto", color = Color(0xFF8AB4F8), fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    listOf(
+                        Triple(0, "Classico", "Tile quadrate, con angoli arrotondabili"),
+                        Triple(1, "Esagonale", "Tile e widget a nido d'ape; gli spazi vuoti si riempiono di esagoni")
+                    ).forEach { (v, label, sub) ->
+                        OptRow(Icons.Outlined.Palette, label, sub, { onAppearance(v) }) {
+                            RadioButton(selected = appearance == v, onClick = { onAppearance(v) })
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
                     Text("Effetto tile", color = Color(0xFF8AB4F8), fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                     val cornerDp = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0
                     Column(

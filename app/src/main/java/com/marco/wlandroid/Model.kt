@@ -313,6 +313,11 @@ class Store(ctx: Context) {
         get() = p.getBoolean("appGrid", false)
         set(v) = p.edit().putBoolean("appGrid", v).apply()
 
+    /** 0 = classico (quadrato), 1 = esagonale */
+    var appearance: Int
+        get() = p.getInt("appearance", 0)
+        set(v) = p.edit().putInt("appearance", v).apply()
+
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)
         set(v) = p.edit().putBoolean("rounded", v).apply()

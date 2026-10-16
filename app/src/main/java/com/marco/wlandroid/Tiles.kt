@@ -372,12 +372,12 @@ fun NotifSummaryTile(
 // ---------- Tile fissa "+" ----------
 
 @Composable
-fun AddTile(size: TileSize, corner: Int = 0) {
+fun AddTile(size: TileSize, corner: Int = 0, hex: Boolean = false) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
             val r = corner.dp.toPx()
             val stroke = 7.dp.toPx().coerceAtMost(this@Canvas.size.minDimension / 4f)
-            val outer = androidx.compose.ui.graphics.Path().apply {
+            val outer = if (hex) hexPath(0f, 0f, this@Canvas.size.width, this@Canvas.size.height) else androidx.compose.ui.graphics.Path().apply {
                 addRoundRect(
                     androidx.compose.ui.geometry.RoundRect(
                         0f, 0f, this@Canvas.size.width, this@Canvas.size.height,
@@ -386,7 +386,9 @@ fun AddTile(size: TileSize, corner: Int = 0) {
                 )
             }
             val ri = (r - stroke).coerceAtLeast(0f)
-            val inner = androidx.compose.ui.graphics.Path().apply {
+            val inner = if (hex) hexPath(
+                stroke, stroke * 1.1547f, this@Canvas.size.width - 2 * stroke, this@Canvas.size.height - 2 * stroke * 1.1547f
+            ) else androidx.compose.ui.graphics.Path().apply {
                 addRoundRect(
                     androidx.compose.ui.geometry.RoundRect(
                         stroke, stroke, this@Canvas.size.width - stroke, this@Canvas.size.height - stroke,

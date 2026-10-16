@@ -126,6 +126,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var imageTarget by remember { mutableStateOf<String?>(null) }
     var extraTarget by remember { mutableStateOf<String?>(null) }
     var pendingPick by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var appearance by remember { mutableIntStateOf(store.appearance) }
     var rounded by remember { mutableStateOf(store.rounded) }
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
@@ -513,6 +514,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         moveMode = moveMode,
                         onPlusMenu = { showMenu = true },
                         fill = landFill,
+                        hex = appearance == 1,
                         tick = extraTick,
                         corner = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0,
                         notifs = notifs,
@@ -662,6 +664,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 pinch = pinchOn,
                 rounded = rounded,
                 radius = radius,
+                appearance = appearance,
+                onAppearance = { appearance = it; store.appearance = it },
                 appGrid = appGrid,
                 onAppGrid = { appGrid = it; store.appGrid = it },
                 landscapeFill = landFill,
