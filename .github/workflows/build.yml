@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,3 +37,16 @@ jobs:
         with:
           name: WLandroid-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Pubblica la release su GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          cp app/build/outputs/apk/debug/app-debug.apk "WLandroid-${TAG}.apk"
+          MSG=$(git log -1 --pretty=%s)
+          gh release create "$TAG" "WLandroid-${TAG}.apk" \
+            --title "WLandroid ${TAG}" \
+            --notes "$MSG" \
+            --target "${{ github.sha }}" \
+            --latest
