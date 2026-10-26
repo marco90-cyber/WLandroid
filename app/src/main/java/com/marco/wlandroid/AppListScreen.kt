@@ -11,6 +11,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -196,7 +201,7 @@ fun AppListScreen(
             LazyColumn(
                 Modifier.fillMaxSize(),
                 state = listState,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp, end = if (groups != null) 30.dp else 0.dp)
             ) {
                 if (groups == null) {
                     items(shown, key = { it.key }) { app -> cell(app) }
@@ -215,6 +220,76 @@ fun AppListScreen(
                             }
                         }
                         items(list, key = { it.key }) { app -> cell(app) }
+                    }
+                }
+            }
+            if (groups != null) {
+                val allLetters = remember { ('A'..'Z').toList() + '#' }
+                val current by androidx.compose.runtime.remember(letterIndex) {
+                    androidx.compose.runtime.derivedStateOf {
+                        val fv = listState.firstVisibleItemIndex
+                        letterIndex.entries.filter { it.value <= fv }.maxByOrNull { it.value }?.key
+                    }
+                }
+                var bubble by remember { mutableStateOf<Char?>(null) }
+                var lastBubble by remember { mutableStateOf('A') }
+                Column(
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 2.dp, top = 8.dp, bottom = 96.dp)
+                        .width(30.dp)
+                        .fillMaxHeight()
+                        .pointerInput(letterIndex) {
+                            fun pick(y: Float) {
+                                val i = (y / size.height * allLetters.size).toInt().coerceIn(0, allLetters.lastIndex)
+                                val target = allLetters.drop(i).firstOrNull { it in letterIndex }
+                                    ?: allLetters.take(i).lastOrNull { it in letterIndex }
+                                if (target != null) {
+                                    bubble = target
+                                    lastBubble = target
+                                    scope.launch { listState.scrollToItem(letterIndex[target] ?: 0) }
+                                }
+                            }
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    pick(down.position.y)
+                                    down.consume()
+                                    do {
+                                        val ev = awaitPointerEvent()
+                                        ev.changes.forEach { if (it.pressed) { pick(it.position.y); it.consume() } }
+                                    } while (ev.changes.any { it.pressed })
+                                    bubble = null
+                                }
+                            }
+                        },
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    allLetters.forEach { ch ->
+                        val on = ch == current
+                        val sc by androidx.compose.animation.core.animateFloatAsState(
+                            if (on) 1.5f else 1f,
+                            androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 500f),
+                            label = "letter"
+                        )
+                        Text(
+                            ch.toString(),
+                            color = if (on) accent else if (ch in letterIndex) fg.copy(alpha = 0.85f) else fg.copy(alpha = 0.25f),
+                            fontSize = 12.sp,
+                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.graphicsLayer { scaleX = sc; scaleY = sc }
+                        )
+                    }
+                }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = bubble != null,
+                    modifier = Modifier.align(Alignment.Center),
+                    enter = androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(dampingRatio = 0.55f)) + androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.scaleOut() + androidx.compose.animation.fadeOut()
+                ) {
+                    Box(Modifier.size(110.dp).background(accent), contentAlignment = Alignment.Center) {
+                        Text(lastBubble.toString(), color = Color.White, fontSize = 64.sp)
                     }
                 }
             }

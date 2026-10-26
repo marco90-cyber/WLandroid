@@ -19,6 +19,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -134,20 +146,28 @@ fun LayoutOverview(
         Modifier
             .fillMaxSize()
             .background(OverBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
     ) {
+        val appear = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { appear.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)) }
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Layout", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Column {
+                Text("Layout", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Box(Modifier.width(28.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(accent))
+            }
             Text(
                 "Applicazioni",
                 color = Soft,
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 modifier = Modifier.clickable { onApps() }
             )
         }
@@ -166,11 +186,18 @@ fun LayoutOverview(
             ) {
                 Box(
                     Modifier
+                        .graphicsLayer {
+                            val a = appear.value
+                            scaleX = 1.14f - 0.14f * a
+                            scaleY = 1.14f - 0.14f * a
+                            alpha = a.coerceIn(0f, 1f)
+                        }
                         .width(cw)
                         .height((ch - 70.dp).coerceAtLeast(120.dp))
-                        .clip(RoundedCornerShape(14.dp))
+                        .shadow(18.dp, RoundedCornerShape(22.dp), ambientColor = accent, spotColor = accent)
+                        .clip(RoundedCornerShape(22.dp))
                         .background(Color.Black)
-                        .border(2.dp, Color(0xFF8AB4F8), RoundedCornerShape(14.dp))
+                        .border(2.dp, accent.copy(alpha = 0.85f), RoundedCornerShape(22.dp))
                         .clickable { onClose() }
                 ) {
                     if (wallpaper != null) {
@@ -178,8 +205,8 @@ fun LayoutOverview(
                     }
                     val shown = resolveAll(tiles)
                     Canvas(Modifier.fillMaxSize().clipToBounds()) {
-                        val pad = size.width * 0.03f
-                        val gap = size.width * 0.015f
+                        val pad = size.width * 0.04f
+                        val gap = size.width * 0.018f
                         val cell = (size.width - 2 * pad - (COLUMNS - 1) * gap) / COLUMNS
                         val hdr = cell * 0.3f
                         val headerRows = shown.filter { it.isHeader }.map { it.row }.toSet()
@@ -189,15 +216,31 @@ fun LayoutOverview(
                         for (r in 0 until maxRow) {
                             top[r + 1] = top[r] + (if (r in headerRows) hdr else cell) + gap
                         }
-                        for (t in shown) {
-                            if (t.row < 0 || t.col < 0) continue
-                            if (t.key == ADD_KEY && locked) continue
-                            val x = pad + t.col * (cell + gap)
-                            val w = t.w * cell + (t.w - 1) * gap
-                            val y = top[t.row.coerceIn(0, maxRow)]
-                            val b = top[(t.row + t.h).coerceIn(0, maxRow)] - gap
-                            val c = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else accent
-                            drawRect(c, Offset(x, y), Size(w, (b - y).coerceAtLeast(1f)))
+                        // se il contenuto è più alto dell'anteprima, lo rimpicciolisce per mostrarlo tutto
+                        val contentH = top[maxRow] + pad
+                        val sc = if (contentH > size.height) size.height / contentH else 1f
+                        withTransform({ scale(sc, sc, Offset(size.width / 2f, 0f)) }) {
+                            val rad = CornerRadius(cell * 0.07f, cell * 0.07f)
+                            for (t in shown) {
+                                if (t.row < 0 || t.col < 0) continue
+                                if (t.key == ADD_KEY && locked) continue
+                                val x = pad + t.col * (cell + gap)
+                                val w = t.w * cell + (t.w - 1) * gap
+                                val y = top[t.row.coerceIn(0, maxRow)]
+                                val b = top[(t.row + t.h).coerceIn(0, maxRow)] - gap
+                                val hh = (b - y).coerceAtLeast(1f)
+                                if (t.key == ADD_KEY) {
+                                    drawRoundRect(Color.Black, Offset(x, y), Size(w, hh), rad)
+                                    val st = cell * 0.05f
+                                    drawRoundRect(
+                                        Color(0xFFF0A30A), Offset(x + st / 2, y + st / 2), Size(w - st, hh - st), rad,
+                                        style = Stroke(st)
+                                    )
+                                    continue
+                                }
+                                val c = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else accent
+                                drawRoundRect(c, Offset(x, y), Size(w, hh), if (t.isHeader) CornerRadius(cell * 0.04f, cell * 0.04f) else rad)
+                            }
                         }
                     }
                 }
