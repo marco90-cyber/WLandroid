@@ -26,6 +26,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -657,6 +659,11 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             )
         }
         if (showSettings) {
+            MaterialTheme(
+                colorScheme = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
+                } else if (dark) darkColorScheme() else lightColorScheme()
+            ) {
             HomeOptionsScreen(
                 accent = accent,
                 dark = dark,
@@ -684,6 +691,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onReset = { showSettings = false; showResetConfirm = true },
                 onClose = { showSettings = false }
             )
+            }
         }
         optionsTarget?.let { k ->
           if (k.startsWith("group:")) {

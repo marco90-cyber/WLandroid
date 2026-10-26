@@ -43,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,10 +90,11 @@ private fun MiniLook(hex: Boolean, accent: Color) {
     }
 }
 
-private val OptBg = Color(0xFF12141A)
-private val OptCircle = Color(0xFF2B2E36)
-private val OptText = Color(0xFFE3E3E8)
-private val OptSoft = Color(0xFFA8AAB4)
+private val OptBg @Composable get() = MaterialTheme.colorScheme.surface
+private val OptCircle @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+private val OptText @Composable get() = MaterialTheme.colorScheme.onSurface
+private val OptSoft @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val OptAccent @Composable get() = MaterialTheme.colorScheme.primary
 
 fun isDefaultHome(ctx: Context): Boolean = try {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -197,7 +199,7 @@ fun HomeOptionsScreen(
             Spacer(Modifier.height(12.dp))
             Text(
                 "In orizzontale",
-                color = Color(0xFF8AB4F8),
+                color = OptAccent,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
             )
@@ -236,7 +238,7 @@ fun HomeOptionsScreen(
         }
         Text(
             title,
-            color = Color.White,
+            color = OptText,
             fontSize = 30.sp,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
         )
@@ -294,7 +296,7 @@ fun HomeOptionsScreen(
                     )
                 }
                 "style" -> {
-                    Text("Aspetto", color = Color(0xFF8AB4F8), fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    Text("Aspetto", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                     listOf(
                         Triple(0, "Classico", "Tile quadrate, con angoli arrotondabili"),
                         Triple(1, "Esagonale", "Tile e widget a nido d'ape; gli spazi vuoti si riempiono di esagoni")
@@ -305,14 +307,14 @@ fun HomeOptionsScreen(
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("Effetto tile", color = Color(0xFF8AB4F8), fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    Text("Effetto tile", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                     val cornerDp = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0
                     Column(
                         Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(28.dp))
-                            .background(Color(0xFF202229))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
                             .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -357,7 +359,7 @@ fun HomeOptionsScreen(
                                 listOf("Piccola", "Media", "Grande").forEachIndexed { i, l ->
                                     Text(
                                         l,
-                                        color = if (i == radius) Color(0xFF8AB4F8) else OptSoft,
+                                        color = if (i == radius) OptAccent else OptSoft,
                                         fontSize = 14.sp,
                                         modifier = Modifier.weight(1f),
                                         textAlign = if (i == 0) androidx.compose.ui.text.style.TextAlign.Start
@@ -380,7 +382,7 @@ fun HomeOptionsScreen(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(cornerDp.coerceAtMost(14).dp))
                                             .background(c)
-                                            .then(if (c == accent) Modifier.border(3.dp, Color.White) else Modifier)
+                                            .then(if (c == accent) Modifier.border(3.dp, OptText) else Modifier)
                                             .clickable { onAccent(c) }
                                     )
                                 }
