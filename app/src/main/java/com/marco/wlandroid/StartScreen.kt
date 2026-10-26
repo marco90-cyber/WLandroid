@@ -463,7 +463,7 @@ fun StartScreen(
                                     val sc = (if (dragging) 1.06f else editScale) * (1f - 0.06f * pk)
                                     scaleX = sc
                                     scaleY = sc
-                                    cameraDistance = 14f * density
+                                    cameraDistance = 14f * this.density
                                     if (pk > 0f && size.width > 0f) {
                                         rotationY = ((lastPress.x - size.width / 2f) / (size.width / 2f)).coerceIn(-1f, 1f) * 9f * pk
                                         rotationX = -((lastPress.y - size.height / 2f) / (size.height / 2f)).coerceIn(-1f, 1f) * 9f * pk

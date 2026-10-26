@@ -48,6 +48,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.border
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
@@ -598,7 +600,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.material3.Icon(
-                        androidx.compose.material.icons.Icons.AutoMirrored.Outlined.ArrowForward, "Tutte le app", tint = fg
+                        Icons.AutoMirrored.Outlined.ArrowForward, "Tutte le app", tint = fg
                     )
                 }
             }
