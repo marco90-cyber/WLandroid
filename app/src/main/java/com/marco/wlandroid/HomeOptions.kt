@@ -121,13 +121,15 @@ private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClic
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(48.dp).clip(CircleShape).background(OptCircle), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = OptText, modifier = Modifier.size(24.dp))
+        Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f)) {
@@ -239,7 +241,7 @@ fun HomeOptionsScreen(
         Text(
             title,
             color = OptText,
-            fontSize = 30.sp,
+            fontSize = 34.sp,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
         )
         Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -251,17 +253,17 @@ fun HomeOptionsScreen(
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(Color(0xFF990010))
+                                .background(MaterialTheme.colorScheme.errorContainer)
                                 .clickable(onClick = onSetDefault)
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                Modifier.size(44.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
+                                Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error.copy(alpha = 0.18f)),
                                 contentAlignment = Alignment.Center
-                            ) { Icon(Icons.Outlined.Warning, null, tint = Color(0xFFFFB4AB)) }
+                            ) { Icon(Icons.Outlined.Warning, null, tint = MaterialTheme.colorScheme.onErrorContainer) }
                             Spacer(Modifier.width(20.dp))
-                            Text("Imposta come Home predefinita", color = Color.White, fontSize = 19.sp)
+                            Text("Imposta come Home predefinita", color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 19.sp)
                         }
                     } else {
                         OptRow(Icons.Outlined.Warning, "Home predefinita", "WLandroid è la tua home attuale", onSetDefault)

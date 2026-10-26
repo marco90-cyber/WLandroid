@@ -384,6 +384,7 @@ fun StartScreen(
                     val occ = HashSet<Long>()
                     for (t in layout) {
                         if (t.isHeader) continue
+                        if (t.w > 1 || t.h > 1) continue // sotto i grandi esagoni si vede il nido d'ape
                         for (dr in 0 until t.h) for (dc in 0 until t.w) {
                             occ.add(((t.row + dr).toLong() shl 20) or (t.col + dc).toLong())
                         }
@@ -529,6 +530,17 @@ fun StartScreen(
                                 }
                                 .then(interaction)
                         ) {
+                            val hexBig = hex && !t.isHeader && (t.w > 1 || t.h > 1)
+                            val kx = if (hexBig) 0.72f else 1f
+                            val ky = if (hexBig) 0.56f else 1f
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        horizontal = with(density) { (r.width * (1f - kx) / 2f).toDp() },
+                                        vertical = with(density) { (r.height * (1f - ky) / 2f).toDp() }
+                                    )
+                            ) {
                             when {
                                 t.isHeader -> HeaderLabel(headerName(t.key))
                                 t.key == "sys:add" -> if (!locked) AddTile(t.size, corner, hex)
@@ -570,11 +582,12 @@ fun StartScreen(
                                 widgetId != null -> WidgetTile(
                                     widgets,
                                     widgetId,
-                                    with(density) { r.width.toDp().value.toInt() },
-                                    with(density) { r.height.toDp().value.toInt() },
+                                    with(density) { (r.width * kx).toDp().value.toInt() },
+                                    with(density) { (r.height * ky).toDp().value.toInt() },
                                     onLongPress = { select(t.key) }
                                 )
                                 shownApp != null -> AppTile(shownApp, t.size, notifs[shownApp.pkg])
+                            }
                             }
                             if ((sel != null || moveMode) && widgetId != null) {
                                 // intercetta i tocchi, così il widget non li "ruba" a selezione e trascinamento
