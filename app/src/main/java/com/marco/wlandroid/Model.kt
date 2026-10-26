@@ -313,11 +313,7 @@ class Store(ctx: Context) {
         get() = p.getBoolean("appGrid", false)
         set(v) = p.edit().putBoolean("appGrid", v).apply()
 
-    /** 0 = classico (quadrato), 1 = esagonale */
-    var appearance: Int
-        get() = p.getInt("appearance", 0)
-        set(v) = p.edit().putInt("appearance", v).apply()
-
+    /** angoli arrotondati delle tile */
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)
         set(v) = p.edit().putBoolean("rounded", v).apply()
@@ -326,11 +322,6 @@ class Store(ctx: Context) {
     var radius: Int
         get() = p.getInt("radius", 0)
         set(v) = p.edit().putInt("radius", v).apply()
-
-    /** colonne della griglia esagonale: meno colonne = tile più grandi */
-    var hexCols: Int
-        get() = p.getInt("hexCols", 4)
-        set(v) = p.edit().putInt("hexCols", v).apply()
 
     var weather: Weather?
         get() = parseWeather(p.getString("weather", null))

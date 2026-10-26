@@ -102,8 +102,6 @@ fun StartScreen(
     moveMode: Boolean,
     onPlusMenu: () -> Unit,
     fill: Boolean,
-    hex: Boolean,
-    hexCols: Int = 4,
     tick: Int,
     corner: Int,
     notifs: Map<String, NotifInfo>,
@@ -178,33 +176,21 @@ fun StartScreen(
         val shortSide = with(density) { minOf(ctx.resources.displayMetrics.widthPixels, ctx.resources.displayMetrics.heightPixels).toFloat() }
         val baseW = minOf(screenPx, shortSide)
         val cellPx = (baseW - 2 * padPx - (BASE_COLUMNS - 1) * gapPx) / BASE_COLUMNS
-        val hexBase = hexCols.coerceIn(3, 6)
-        val hexCw = (baseW - 2 * padPx) / (hexBase + 0.5f)
-        val hexHh = hexCw * 1.1547f
-        val hexRp = hexCw * 0.866f
-        val cols = if (hex && !fill) {
-            hexBase
-        } else if (!fill) {
+        val cols = if (!fill) {
             BASE_COLUMNS
-        } else if (hex) {
-            maxOf(hexBase, ((screenPx - 2 * padPx) / hexCw - 0.5f).toInt())
         } else {
             maxOf(BASE_COLUMNS, ((screenPx - 2 * padPx + gapPx) / (cellPx + gapPx)).toInt())
         }
         COLUMNS = cols
-        val gridW = if (hex) 2 * padPx + cols * hexCw + hexCw / 2f else 2 * padPx + cols * cellPx + (cols - 1) * gapPx
+        val gridW = 2 * padPx + cols * cellPx + (cols - 1) * gapPx
         val offX = ((screenPx - gridW) / 2f).coerceAtLeast(0f)
         // i divisori occupano sempre tutta la larghezza; le altre tile restano dentro le colonne disponibili
         val visible = visible0.map {
             if (it.isHeader) {
                 it.copy(col = 0, w = cols)
             } else {
-                // in modalità esagonale le tile sono sempre 1:1
-                val fixedHex = hex && (it.key.startsWith("widget:") || it.key.startsWith("live:"))
-                val nn = if (fixedHex) 1 else minOf(it.w, it.h, cols)
-                val nw = if (hex) nn else minOf(it.w, cols)
-                val nh = if (hex) nn else it.h
-                it.copy(w = nw, h = nh, col = it.col.coerceIn(0, cols - nw))
+                val nw = minOf(it.w, cols)
+                it.copy(w = nw, col = it.col.coerceIn(0, cols - nw))
             }
         }
         val hdrPx = with(density) { 26.dp.toPx() }
@@ -220,8 +206,6 @@ fun StartScreen(
             for (r in 0 until n) {
                 top[r + 1] = top[r] + if (r in headerRows) {
                     hdrPx + gapPx
-                } else if (hex) {
-                    if ((r + 1) in headerRows) hexHh + gapPx else hexRp
                 } else {
                     cellPx + gapPx
                 }
@@ -230,15 +214,6 @@ fun StartScreen(
         }
 
         fun rectIn(top: FloatArray, t: Tile): Rect {
-            if (hex) {
-                val y0 = top[t.row.coerceIn(0, top.size - 1)]
-                if (t.isHeader) return Rect(offX + padPx, y0, offX + padPx + cols * hexCw, y0 + hdrPx)
-                val par = if (t.h == 1 && t.row % 2 == 1) hexCw / 2f else 0f
-                val hx = offX + padPx + t.col * hexCw + par
-                val hw = t.w * hexCw + (if (t.h >= 2) hexCw / 2f else 0f)
-                val yb = top[(t.row + t.h - 1).coerceIn(0, top.size - 1)] + hexHh
-                return Rect(hx, y0, hx + hw, yb)
-            }
             val x = offX + padPx + t.col * (cellPx + gapPx)
             val w = t.w * cellPx + (t.w - 1) * gapPx
             val y = top[t.row.coerceIn(0, top.size - 1)]
@@ -286,9 +261,7 @@ fun StartScreen(
                 }
             }
             best = best.coerceAtMost((committedTop.size - 1 - dragTile.h).coerceAtLeast(0))
-            val par = if (hex && dragTile.h == 1 && best % 2 == 1) hexCw / 2f else 0f
-            val unitW = if (hex) hexCw else cellPx + gapPx
-            val col = ((left - offX - padPx - par) / unitW).roundToInt().coerceIn(0, COLUMNS - dragTile.w)
+            val col = ((left - offX - padPx) / (cellPx + gapPx)).roundToInt().coerceIn(0, COLUMNS - dragTile.w)
             target = col to best
         }
 
@@ -316,8 +289,8 @@ fun StartScreen(
         val top = topsOf(layout, 0)
         val restTop = topsOf(restLayout, 0)
         val totalHeight = with(density) {
-            val bottomPx = if (hex) top[top.size - 1] + (hexHh - hexRp) else top[top.size - 1] - gapPx
-            (bottomPx + padPx + (if (dragTile != null) 2 * (if (hex) hexRp else cellPx + gapPx) else 0f))
+            val bottomPx = top[top.size - 1] - gapPx
+            (bottomPx + padPx + (if (dragTile != null) 2 * (cellPx + gapPx) else 0f))
                 .coerceAtLeast(0f).toDp()
         }
         val selectedTile = restLayout.firstOrNull { it.key == selected }
@@ -338,11 +311,7 @@ fun StartScreen(
                 if (ghostTile != null) {
                     val gr = rectIn(top, ghostTile)
                     val gbg = ghostTile.color?.let { Color(it) } ?: if (ghostTile.isHeader) Color(0xFF2E2E2E) else accent
-                    val ghostShape: Shape = if (hex && !ghostTile.isHeader) {
-                        HexShape(ghostTile.w, ghostTile.h, ghostTile.row % 2 == 1, hexCw, hexHh, hexRp)
-                    } else {
-                        shape
-                    }
+                    val ghostShape: Shape = shape
                     Box(
                         Modifier
                             .offset { IntOffset(gr.left.roundToInt(), gr.top.roundToInt()) }
@@ -351,73 +320,6 @@ fun StartScreen(
                             .background(Color(gbg.red * 0.45f, gbg.green * 0.45f, gbg.blue * 0.45f, 1f))
                             .border(1.dp, Color.White.copy(alpha = 0.35f))
                     )
-                }
-                if (hex) {
-                    // mezzi esagoni ai bordi e triangoli sopra/sotto i blocchi, vicino a divisori e margini
-                    val hdrRowsT = layout.filter { it.isHeader }.map { it.row }.toSet()
-                    val nRowsT = layout.maxOfOrNull { it.row + it.h } ?: 0
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .drawBehind {
-                                val gx0 = offX + padPx
-                                val gx1 = gx0 + cols * hexCw + hexCw / 2f
-                                val fillCol = accent.copy(alpha = 0.22f)
-                                fun hexAt(c: Int, rowIdx: Int, y: Float, cy0: Float, cy1: Float) {
-                                    val x = gx0 + c * hexCw + (if (rowIdx % 2 == 1) hexCw / 2f else 0f)
-                                    clipRect(gx0, cy0, gx1, cy1) {
-                                        drawPath(
-                                            hexPath(x + gapPx / 2f, y + gapPx / 2f, hexCw - gapPx, hexHh - gapPx),
-                                            fillCol
-                                        )
-                                    }
-                                }
-                                for (r in 0 until nRowsT) {
-                                    if (r in hdrRowsT) continue
-                                    val tr = top[r]
-                                    if (r % 2 == 1) hexAt(-1, r, tr, tr - 1f, tr + hexHh + 1f)
-                                    else hexAt(cols, r, tr, tr - 1f, tr + hexHh + 1f)
-                                    if (r == 0 || (r - 1) in hdrRowsT) {
-                                        for (c in -1..cols) hexAt(c, r - 1, tr - hexRp, tr, tr + hexHh)
-                                    }
-                                    if ((r + 1) in hdrRowsT || r == nRowsT - 1) {
-                                        for (c in -1..cols) hexAt(c, r + 1, tr + hexRp, tr - 1f, tr + hexHh)
-                                    }
-                                }
-                            }
-                    )
-                    // esagoni di riempimento nelle celle libere: si ricalcolano ad ogni spostamento
-                    val occ = HashSet<Long>()
-                    for (t in layout) {
-                        if (t.isHeader) continue
-                        if (t.w > 1 || t.h > 1) continue // sotto i grandi esagoni si vede il nido d'ape
-                        for (dr in 0 until t.h) for (dc in 0 until t.w) {
-                            occ.add(((t.row + dr).toLong() shl 20) or (t.col + dc).toLong())
-                        }
-                    }
-                    val hdrRows = layout.filter { it.isHeader }.map { it.row }.toSet()
-                    val nRows = layout.maxOfOrNull { it.row + it.h } ?: 0
-                    val fw = with(density) { hexCw.toDp() }
-                    val fh = with(density) { hexHh.toDp() }
-                    for (r in 0 until nRows) {
-                        if (r in hdrRows) continue
-                        for (c in 0 until cols) {
-                            if (((r.toLong() shl 20) or c.toLong()) in occ) continue
-                            val fx = offX + padPx + c * hexCw + (if (r % 2 == 1) hexCw / 2f else 0f)
-                            val fy = top[r]
-                            Box(
-                                Modifier
-                                    .offset { IntOffset(fx.roundToInt(), fy.roundToInt()) }
-                                    .size(fw, fh)
-                                    .drawBehind {
-                                        drawPath(
-                                            hexPath(gapPx / 2f, gapPx / 2f, size.width - gapPx, size.height - gapPx),
-                                            accent.copy(alpha = 0.22f)
-                                        )
-                                    }
-                            )
-                        }
-                    }
                 }
                 for (t in layout) {
                     key(t.key) {
@@ -495,12 +397,7 @@ fun StartScreen(
                             )
                         }
 
-                        val tshape: Shape = if (hex && !t.isHeader) {
-                            HexShape(t.w, t.h, t.row % 2 == 1, hexCw, hexHh, hexRp)
-                        } else {
-                            shape
-                        }
-                        val hexP = if (tshape is HexShape) remember(tshape) { tshape.path() } else null
+                        val tshape: Shape = shape
                         val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else if (t.key == ADD_KEY) (if (locked) Color.Transparent else Color.Black) else if (expActive && expandedGroup == t.key) Color.Transparent else accent
 
                         Box(
@@ -524,35 +421,14 @@ fun StartScreen(
                                     scaleY = sc
                                     alpha = if (dragging) 0.92f else 1f
                                     shadowElevation = if (dragging) 24f else 0f
-                                    if (hexP != null) compositingStrategy = CompositingStrategy.Offscreen
                                 }
                                 .clip(tshape)
                                 .background(bg)
-                                .drawWithContent {
-                                    drawContent()
-                                    if (hexP != null) {
-                                        drawPath(hexP, Color.Black, style = Stroke(gapPx), blendMode = BlendMode.Clear)
-                                    }
-                                }
                                 .then(interaction)
                         ) {
-                            val hexBig = hex && !t.isHeader && (t.w > 1 || t.h > 1)
-                            val hexSmall = hex && !t.isHeader && !hexBig
-                            val kx = if (hexBig) 0.72f else 1f
-                            val ky = if (hexBig) 0.56f else 1f
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(
-                                        start = with(density) { (r.width * (1f - kx) / 2f).toDp() },
-                                        end = with(density) { (r.width * (1f - kx) / 2f).toDp() },
-                                        top = with(density) { (if (hexSmall) 0f else r.height * (1f - ky) / 2f).toDp() },
-                                        bottom = with(density) { (if (hexSmall) r.height * 0.17f else r.height * (1f - ky) / 2f).toDp() }
-                                    )
-                            ) {
                             when {
                                 t.isHeader -> HeaderLabel(headerName(t.key))
-                                t.key == "sys:add" -> if (!locked) AddTile(t.size, corner, hex)
+                                t.key == "sys:add" -> if (!locked) AddTile(t.size, corner)
                                 t.key.startsWith("sys:apps") -> AppsTile(t.size, t.label)
                                 t.key.startsWith("act:") -> ActionTile(
                                     actionById(t.key.removePrefix("act:").substringBefore('#')),
@@ -596,7 +472,6 @@ fun StartScreen(
                                     onLongPress = { select(t.key) }
                                 )
                                 shownApp != null -> AppTile(shownApp, t.size, notifs[shownApp.pkg])
-                            }
                             }
                             if ((sel != null || moveMode) && widgetId != null) {
                                 // intercetta i tocchi, così il widget non li "ruba" a selezione e trascinamento
@@ -659,7 +534,7 @@ fun StartScreen(
                     RoundBtn(Icons.Outlined.Settings, Color.Black, bx(rs.left), by(rs.bottom)) {
                         onOptions(tile)
                     }
-                    if (!tile.isHeader && !(hex && (tile.key.startsWith("widget:") || tile.key.startsWith("live:")))) {
+                    if (!tile.isHeader) {
                         RoundBtn(
                             Icons.Outlined.Fullscreen,
                             Color.Black,
@@ -667,8 +542,8 @@ fun StartScreen(
                             by(rs.bottom),
                             modifier = Modifier.pointerInput(tile.key, cellPx) {
                                 var acc = Offset.Zero
-                                val stepX = if (hex) hexCw else cellPx + gapPx
-                                val stepY = if (hex) hexRp else cellPx + gapPx
+                                val stepX = cellPx + gapPx
+                                val stepY = cellPx + gapPx
                                 detectDragGestures(
                                     onDragStart = {
                                         acc = Offset.Zero
@@ -683,11 +558,6 @@ fun StartScreen(
                                         if (st != null) {
                                             resizeW = ((st.w * stepX + acc.x) / stepX).roundToInt().coerceIn(1, COLUMNS)
                                             resizeH = ((st.h * stepY + acc.y) / stepY).roundToInt().coerceIn(1, 12)
-                                            if (hex) {
-                                                val m = maxOf(resizeW, resizeH).coerceAtMost(COLUMNS)
-                                                resizeW = m
-                                                resizeH = m
-                                            }
                                         }
                                     },
                                     onDragEnd = {

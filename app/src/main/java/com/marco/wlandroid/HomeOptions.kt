@@ -61,36 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
-private val HexPreviewShape = androidx.compose.foundation.shape.GenericShape { size, _ ->
-    addPath(hexPath(0f, 0f, size.width, size.height))
-}
-
-@Composable
-private fun MiniLook(hex: Boolean, accent: Color) {
-    androidx.compose.foundation.Canvas(Modifier.size(44.dp)) {
-        val w = size.width
-        if (!hex) {
-            val s = w * 0.44f
-            val r = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
-            for (i in 0..1) for (j in 0..1) {
-                drawRoundRect(
-                    accent,
-                    androidx.compose.ui.geometry.Offset(w * 0.04f + i * w * 0.48f, w * 0.04f + j * w * 0.48f),
-                    androidx.compose.ui.geometry.Size(s, s),
-                    r
-                )
-            }
-        } else {
-            val cw = w * 0.46f
-            val hh = cw * 1.1547f
-            for (j in 0..1) for (i in 0..1) {
-                val x = w * 0.02f + i * (cw + 1f) + (if (j == 1) cw / 2f else 0f) - (if (j == 1) 0f else 0f)
-                drawPath(hexPath(x - cw * 0.12f * j, w * 0.04f + j * hh * 0.78f, cw, hh), accent)
-            }
-        }
-    }
-}
-
 private val OptBg @Composable get() = MaterialTheme.colorScheme.surface
 private val OptCircle @Composable get() = MaterialTheme.colorScheme.surfaceVariant
 private val OptText @Composable get() = MaterialTheme.colorScheme.onSurface
@@ -151,10 +121,6 @@ fun HomeOptionsScreen(
     radius: Int,
     orientation: Int,
     onOrientation: (Int) -> Unit,
-    appearance: Int,
-    onAppearance: (Int) -> Unit,
-    hexCols: Int = 4,
-    onHexCols: (Int) -> Unit = {},
     appGrid: Boolean,
     onAppGrid: (Boolean) -> Unit,
     landscapeFill: Boolean,
@@ -301,37 +267,6 @@ fun HomeOptionsScreen(
                     )
                 }
                 "style" -> {
-                    Text("Aspetto", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                    listOf(
-                        Triple(0, "Classico", "Tile quadrate, con angoli arrotondabili"),
-                        Triple(1, "Esagonale", "Tile e widget a nido d'ape; gli spazi vuoti si riempiono di esagoni")
-                    ).forEach { (v, label, sub) ->
-                        OptRow(Icons.Outlined.Palette, label, sub, { onAppearance(v) }) {
-                            MiniLook(v == 1, accent)
-                            RadioButton(selected = appearance == v, onClick = { onAppearance(v) })
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    if (appearance == 1) {
-                        Text("Dimensione tile esagonali", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                        Column(Modifier.padding(horizontal = 24.dp)) {
-                            Text(
-                                when (hexCols) { 3 -> "Molto grandi"; 4 -> "Grandi"; 5 -> "Medie"; else -> "Piccole" },
-                                color = OptText, fontSize = 18.sp
-                            )
-                            Slider(
-                                value = (6 - hexCols).toFloat(),
-                                onValueChange = { onHexCols(6 - it.roundToInt().coerceIn(0, 3)) },
-                                valueRange = 0f..3f,
-                                steps = 2
-                            )
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Piccole", color = OptSoft, fontSize = 13.sp)
-                                Text("Molto grandi", color = OptSoft, fontSize = 13.sp)
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
                     Text("Effetto tile", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                     val cornerDp = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0
                     Column(
@@ -344,15 +279,6 @@ fun HomeOptionsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(Modifier.size(150.dp).clip(RoundedCornerShape(18.dp)).background(Color.Black)) {
-                            if (appearance == 1) {
-                                Box(
-                                    Modifier
-                                        .padding(start = 40.dp, top = 22.dp)
-                                        .size(100.dp, 115.dp)
-                                        .clip(HexPreviewShape)
-                                        .background(accent)
-                                )
-                            } else {
                                 Box(
                                     Modifier
                                         .padding(start = 28.dp, top = 28.dp)
@@ -360,15 +286,14 @@ fun HomeOptionsScreen(
                                         .clip(RoundedCornerShape(topStart = cornerDp.dp, bottomStart = cornerDp.dp, topEnd = cornerDp.dp, bottomEnd = cornerDp.dp))
                                         .background(accent)
                                 )
-                            }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text("Anteprima", color = OptText, fontSize = 16.sp)
                         Spacer(Modifier.height(16.dp))
-                        Column(Modifier.alpha(if (appearance == 1) 0.38f else 1f)) {
+                        Column {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Arrotondato", color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
-                            Switch(checked = rounded, onCheckedChange = onRounded, enabled = appearance != 1)
+                            Switch(checked = rounded, onCheckedChange = onRounded)
                         }
                         if (rounded) {
                             Spacer(Modifier.height(16.dp))
@@ -377,8 +302,7 @@ fun HomeOptionsScreen(
                                 value = radius.toFloat(),
                                 onValueChange = { onRadius(it.roundToInt().coerceIn(0, 2)) },
                                 valueRange = 0f..2f,
-                                steps = 1,
-                                enabled = appearance != 1
+                                steps = 1
                             )
                             Row(Modifier.fillMaxWidth()) {
                                 listOf("Piccola", "Media", "Grande").forEachIndexed { i, l ->
