@@ -51,12 +51,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+
+private val HexPreviewShape = androidx.compose.foundation.shape.GenericShape { size, _ ->
+    addPath(hexPath(0f, 0f, size.width, size.height))
+}
+
+@Composable
+private fun MiniLook(hex: Boolean, accent: Color) {
+    androidx.compose.foundation.Canvas(Modifier.size(44.dp)) {
+        val w = size.width
+        if (!hex) {
+            val s = w * 0.44f
+            val r = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+            for (i in 0..1) for (j in 0..1) {
+                drawRoundRect(
+                    accent,
+                    androidx.compose.ui.geometry.Offset(w * 0.04f + i * w * 0.48f, w * 0.04f + j * w * 0.48f),
+                    androidx.compose.ui.geometry.Size(s, s),
+                    r
+                )
+            }
+        } else {
+            val cw = w * 0.46f
+            val hh = cw * 1.1547f
+            for (j in 0..1) for (i in 0..1) {
+                val x = w * 0.02f + i * (cw + 1f) + (if (j == 1) cw / 2f else 0f) - (if (j == 1) 0f else 0f)
+                drawPath(hexPath(x - cw * 0.12f * j, w * 0.04f + j * hh * 0.78f, cw, hh), accent)
+            }
+        }
+    }
+}
 
 private val OptBg = Color(0xFF12141A)
 private val OptCircle = Color(0xFF2B2E36)
@@ -269,6 +300,7 @@ fun HomeOptionsScreen(
                         Triple(1, "Esagonale", "Tile e widget a nido d'ape; gli spazi vuoti si riempiono di esagoni")
                     ).forEach { (v, label, sub) ->
                         OptRow(Icons.Outlined.Palette, label, sub, { onAppearance(v) }) {
+                            MiniLook(v == 1, accent)
                             RadioButton(selected = appearance == v, onClick = { onAppearance(v) })
                         }
                     }
@@ -285,20 +317,31 @@ fun HomeOptionsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(Modifier.size(150.dp).clip(RoundedCornerShape(18.dp)).background(Color.Black)) {
-                            Box(
-                                Modifier
-                                    .padding(start = 28.dp, top = 28.dp)
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(topStart = cornerDp.dp, bottomStart = cornerDp.dp, topEnd = cornerDp.dp, bottomEnd = cornerDp.dp))
-                                    .background(accent)
-                            )
+                            if (appearance == 1) {
+                                Box(
+                                    Modifier
+                                        .padding(start = 40.dp, top = 22.dp)
+                                        .size(100.dp, 115.dp)
+                                        .clip(HexPreviewShape)
+                                        .background(accent)
+                                )
+                            } else {
+                                Box(
+                                    Modifier
+                                        .padding(start = 28.dp, top = 28.dp)
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(topStart = cornerDp.dp, bottomStart = cornerDp.dp, topEnd = cornerDp.dp, bottomEnd = cornerDp.dp))
+                                        .background(accent)
+                                )
+                            }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text("Anteprima", color = OptText, fontSize = 16.sp)
                         Spacer(Modifier.height(16.dp))
+                        Column(Modifier.alpha(if (appearance == 1) 0.38f else 1f)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Arrotondato", color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
-                            Switch(checked = rounded, onCheckedChange = onRounded)
+                            Switch(checked = rounded, onCheckedChange = onRounded, enabled = appearance != 1)
                         }
                         if (rounded) {
                             Spacer(Modifier.height(16.dp))
@@ -307,7 +350,8 @@ fun HomeOptionsScreen(
                                 value = radius.toFloat(),
                                 onValueChange = { onRadius(it.roundToInt().coerceIn(0, 2)) },
                                 valueRange = 0f..2f,
-                                steps = 1
+                                steps = 1,
+                                enabled = appearance != 1
                             )
                             Row(Modifier.fillMaxWidth()) {
                                 listOf("Piccola", "Media", "Grande").forEachIndexed { i, l ->
@@ -322,6 +366,7 @@ fun HomeOptionsScreen(
                                     )
                                 }
                             }
+                        }
                         }
                         Spacer(Modifier.height(16.dp))
                         Text("Colore", color = OptText, fontSize = 20.sp, modifier = Modifier.fillMaxWidth())

@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -193,8 +194,11 @@ fun StartScreen(
             if (it.isHeader) {
                 it.copy(col = 0, w = cols)
             } else {
-                val nw = minOf(it.w, cols)
-                it.copy(w = nw, col = it.col.coerceIn(0, cols - nw))
+                // in modalità esagonale le tile sono sempre 1:1
+                val nn = minOf(it.w, it.h, cols)
+                val nw = if (hex) nn else minOf(it.w, cols)
+                val nh = if (hex) nn else it.h
+                it.copy(w = nw, h = nh, col = it.col.coerceIn(0, cols - nw))
             }
         }
         val hdrPx = with(density) { 26.dp.toPx() }
@@ -208,7 +212,13 @@ fun StartScreen(
             val top = FloatArray(n + 1)
             top[0] = padPx
             for (r in 0 until n) {
-                top[r + 1] = top[r] + if (r in headerRows) hdrPx + gapPx else if (hex) hexRp else cellPx + gapPx
+                top[r + 1] = top[r] + if (r in headerRows) {
+                    hdrPx + gapPx
+                } else if (hex) {
+                    if ((r + 1) in headerRows) hexHh + gapPx else hexRp
+                } else {
+                    cellPx + gapPx
+                }
             }
             return top
         }
@@ -337,6 +347,39 @@ fun StartScreen(
                     )
                 }
                 if (hex) {
+                    // mezzi esagoni ai bordi e triangoli sopra/sotto i blocchi, vicino a divisori e margini
+                    val hdrRowsT = layout.filter { it.isHeader }.map { it.row }.toSet()
+                    val nRowsT = layout.maxOfOrNull { it.row + it.h } ?: 0
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .drawBehind {
+                                val gx0 = offX + padPx
+                                val gx1 = gx0 + cols * hexCw + hexCw / 2f
+                                val fillCol = accent.copy(alpha = 0.22f)
+                                fun hexAt(c: Int, rowIdx: Int, y: Float, cy0: Float, cy1: Float) {
+                                    val x = gx0 + c * hexCw + (if (rowIdx % 2 == 1) hexCw / 2f else 0f)
+                                    clipRect(gx0, cy0, gx1, cy1) {
+                                        drawPath(
+                                            hexPath(x + gapPx / 2f, y + gapPx / 2f, hexCw - gapPx, hexHh - gapPx),
+                                            fillCol
+                                        )
+                                    }
+                                }
+                                for (r in 0 until nRowsT) {
+                                    if (r in hdrRowsT) continue
+                                    val tr = top[r]
+                                    if (r % 2 == 1) hexAt(-1, r, tr, tr - 1f, tr + hexHh + 1f)
+                                    else hexAt(cols, r, tr, tr - 1f, tr + hexHh + 1f)
+                                    if (r == 0 || (r - 1) in hdrRowsT) {
+                                        for (c in -1..cols) hexAt(c, r - 1, tr - hexRp, tr, tr + hexHh)
+                                    }
+                                    if ((r + 1) in hdrRowsT || r == nRowsT - 1) {
+                                        for (c in -1..cols) hexAt(c, r + 1, tr + hexRp, tr - 1f, tr + hexHh)
+                                    }
+                                }
+                            }
+                    )
                     // esagoni di riempimento nelle celle libere: si ricalcolano ad ogni spostamento
                     val occ = HashSet<Long>()
                     for (t in layout) {
@@ -618,6 +661,11 @@ fun StartScreen(
                                         if (st != null) {
                                             resizeW = ((st.w * stepX + acc.x) / stepX).roundToInt().coerceIn(1, COLUMNS)
                                             resizeH = ((st.h * stepY + acc.y) / stepY).roundToInt().coerceIn(1, 12)
+                                            if (hex) {
+                                                val m = maxOf(resizeW, resizeH).coerceAtMost(COLUMNS)
+                                                resizeW = m
+                                                resizeH = m
+                                            }
                                         }
                                     },
                                     onDragEnd = {
