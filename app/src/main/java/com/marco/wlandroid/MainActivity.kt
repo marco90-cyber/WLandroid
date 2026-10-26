@@ -46,6 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
@@ -498,6 +502,17 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 userScrollEnabled = !editing && !moveMode,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
+              Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        // transizione tra Start e lista app: dissolvenza e leggero zoom
+                        val off = kotlin.math.abs((pager.currentPage - page) + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
+                        alpha = 1f - 0.55f * off
+                        scaleX = 1f - 0.08f * off
+                        scaleY = 1f - 0.08f * off
+                    }
+              ) {
                 if (page == 0) {
                   Box(Modifier.fillMaxSize()) {
                     wall?.let {
@@ -566,6 +581,24 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         grid = appGrid,
                         onGrid = { appGrid = it; store.appGrid = it },
                         onSettings = { showSettings = true }
+                    )
+                }
+              }
+            }
+            if (pager.currentPage == 0 && !editing && !moveMode) {
+                val pageScope = androidx.compose.runtime.rememberCoroutineScope()
+                Box(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp)
+                        .size(44.dp)
+                        .border(2.dp, fg, androidx.compose.foundation.shape.CircleShape)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { pageScope.launch { pager.animateScrollToPage(1) } },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.AutoMirrored.Outlined.ArrowForward, "Tutte le app", tint = fg
                     )
                 }
             }

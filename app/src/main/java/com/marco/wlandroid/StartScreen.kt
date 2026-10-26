@@ -1,7 +1,16 @@
 package com.marco.wlandroid
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitFirstDown
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -330,12 +339,45 @@ fun StartScreen(
                         val dragging = dragKey == t.key
                         val animated by animateIntOffsetAsState(
                             IntOffset(r.left.roundToInt(), r.top.roundToInt()),
-                            tween(220),
+                            spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                             label = "tilePos"
                         )
                         val sel = selected
                         val isSel = sel == t.key
                         val dimmed = sel != null && !isSel
+
+                        // effetto Windows Phone: inclinazione al tocco, ingresso "turnstile", tile ridotte in modifica
+                        var pressPos by remember { mutableStateOf<Offset?>(null) }
+                        var lastPress by remember { mutableStateOf(Offset.Zero) }
+                        val press by animateFloatAsState(
+                            if (pressPos != null) 1f else 0f,
+                            spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
+                            label = "press"
+                        )
+                        val enter = remember { Animatable(0f) }
+                        val enterIdx = remember { layout.indexOfFirst { it.key == t.key } }
+                        LaunchedEffect(Unit) {
+                            delay((enterIdx.coerceAtLeast(0) * 28L).coerceAtMost(420L))
+                            enter.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
+                        }
+                        val editScale by animateFloatAsState(
+                            if (dimmed) 0.93f else 1f,
+                            spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+                            label = "editScale"
+                        )
+                        val tilt = Modifier.pointerInput(t.key) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    lastPress = down.position
+                                    pressPos = down.position
+                                    do {
+                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                    } while (ev.changes.any { it.pressed })
+                                    pressPos = null
+                                }
+                            }
+                        }
 
                         val interaction = when {
                             isSel || moveMode -> Modifier.pointerInput(t.key, cellPx, moveMode) {
@@ -416,14 +458,28 @@ fun StartScreen(
                                 )
                                 .zIndex(if (dragging) 3f else 0f)
                                 .graphicsLayer {
-                                    val sc = if (dragging) 1.06f else 1f
+                                    val calm = sel == null && !moveMode && !dragging
+                                    val pk = if (calm) press else 0f
+                                    val sc = (if (dragging) 1.06f else editScale) * (1f - 0.06f * pk)
                                     scaleX = sc
                                     scaleY = sc
-                                    alpha = if (dragging) 0.92f else 1f
+                                    cameraDistance = 14f * density
+                                    if (pk > 0f && size.width > 0f) {
+                                        rotationY = ((lastPress.x - size.width / 2f) / (size.width / 2f)).coerceIn(-1f, 1f) * 9f * pk
+                                        rotationX = -((lastPress.y - size.height / 2f) / (size.height / 2f)).coerceIn(-1f, 1f) * 9f * pk
+                                    }
+                                    val e = enter.value
+                                    if (e < 1f && size.width > 0f) {
+                                        // le tile ruotano come una porta ancorata al bordo sinistro dello schermo
+                                        transformOrigin = TransformOrigin(-r.left / size.width, 0.5f)
+                                        rotationY = (1f - e) * 62f
+                                    }
+                                    alpha = (if (dragging) 0.92f else 1f) * e.coerceIn(0f, 1f)
                                     shadowElevation = if (dragging) 24f else 0f
                                 }
                                 .clip(tshape)
                                 .background(bg)
+                                .then(tilt)
                                 .then(interaction)
                         ) {
                             when {
@@ -467,8 +523,8 @@ fun StartScreen(
                                 widgetId != null -> WidgetTile(
                                     widgets,
                                     widgetId,
-                                    with(density) { (r.width * kx).toDp().value.toInt() },
-                                    with(density) { (r.height * ky).toDp().value.toInt() },
+                                    with(density) { r.width.toDp().value.toInt() },
+                                    with(density) { r.height.toDp().value.toInt() },
                                     onLongPress = { select(t.key) }
                                 )
                                 shownApp != null -> AppTile(shownApp, t.size, notifs[shownApp.pkg])

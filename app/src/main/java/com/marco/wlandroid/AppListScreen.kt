@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 val AccentPalette = listOf(
     0xFFA4C400, 0xFF60A917, 0xFF00ABA9, 0xFF1BA1E2,
@@ -78,20 +79,28 @@ fun AppListScreen(
     var sortMenu by remember { mutableStateOf(false) }
     var sortMode by remember { mutableStateOf(0) } // 0 A-Z, 1 Z-A, 2 più recenti
     val focus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
-    val installed = remember(apps) {
-        apps.associate { a ->
-            a.pkg to try {
-                ctx.packageManager.getPackageInfo(a.pkg, 0).firstInstallTime
-            } catch (e: Exception) {
-                0L
+    // la data di installazione si legge solo se serve (ordinamento "più recenti") e fuori dal thread principale
+    val installed by androidx.compose.runtime.produceState(emptyMap<String, Long>(), apps, sortMode) {
+        if (sortMode == 2) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                apps.associate { a ->
+                    a.pkg to try {
+                        ctx.packageManager.getPackageInfo(a.pkg, 0).firstInstallTime
+                    } catch (e: Exception) {
+                        0L
+                    }
+                }
             }
         }
     }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var jump by remember { mutableStateOf(false) }
     androidx.activity.compose.BackHandler(searching) {
         searching = false
         query = ""
     }
-    val shown = remember(apps, query, sortMode) {
+    val shown = remember(apps, query, sortMode, installed) {
         val f = if (query.isBlank()) apps else apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
         when (sortMode) {
             1 -> f.sortedByDescending { it.label.lowercase() }
@@ -170,11 +179,88 @@ fun AppListScreen(
                 gridItems(shown, key = { it.key }) { app -> cell(app) }
             }
         } else {
+            val letterOf = { a: AppInfo ->
+                val c = a.label.trim().firstOrNull()?.uppercaseChar()
+                if (c != null && c in 'A'..'Z') c else '#'
+            }
+            val groups = remember(shown, sortMode) {
+                if (sortMode == 2) null else shown.groupBy(letterOf)
+            }
+            // posizione di ogni lettera nella lista, per la "jump list"
+            val letterIndex = remember(groups) {
+                val m = HashMap<Char, Int>()
+                var idx = 0
+                groups?.forEach { (ch, l) -> m[ch] = idx; idx += 1 + l.size }
+                m
+            }
             LazyColumn(
                 Modifier.fillMaxSize(),
+                state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 96.dp)
             ) {
-                items(shown, key = { it.key }) { app -> cell(app) }
+                if (groups == null) {
+                    items(shown, key = { it.key }) { app -> cell(app) }
+                } else {
+                    groups.forEach { (ch, list) ->
+                        item(key = "h$ch") {
+                            Box(
+                                Modifier
+                                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                                    .size(46.dp)
+                                    .border(2.dp, accent)
+                                    .clickable { jump = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(ch.toString(), color = accent, fontSize = 26.sp)
+                            }
+                        }
+                        items(list, key = { it.key }) { app -> cell(app) }
+                    }
+                }
+            }
+            if (jump) {
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { jump = false },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.92f))
+                            .clickable { jump = false },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val letters = ('A'..'Z').toList() + '#'
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            letters.chunked(4).forEach { row ->
+                                Row {
+                                    row.forEach { ch ->
+                                        val idx = letterIndex[ch]
+                                        Box(
+                                            Modifier
+                                                .padding(5.dp)
+                                                .size(68.dp)
+                                                .background(if (idx != null) accent else Color(0xFF2B2B2B))
+                                                .then(
+                                                    if (idx != null) Modifier.clickable {
+                                                        jump = false
+                                                        scope.launch { listState.scrollToItem(idx) }
+                                                    } else Modifier
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                ch.toString(),
+                                                color = if (idx != null) Color.White else Color(0xFF6B6B6B),
+                                                fontSize = 28.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
