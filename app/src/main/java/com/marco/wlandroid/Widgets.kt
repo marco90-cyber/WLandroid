@@ -213,11 +213,12 @@ fun WidgetPickerDialog(
     builtins: List<Pair<String, String>>,
     onBuiltin: (String) -> Unit,
     onPick: (AppWidgetProviderInfo) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    allowCustom: Boolean = true
 ) {
     val ctx = LocalContext.current
     val entries = remember {
-        ctl.providers().map { p ->
+        (if (allowCustom) ctl.providers() else emptyList()).map { p ->
             Triple(
                 p,
                 p.loadLabel(ctx.packageManager).toString(),

@@ -200,7 +200,8 @@ fun StartScreen(
                 it.copy(col = 0, w = cols)
             } else {
                 // in modalità esagonale le tile sono sempre 1:1
-                val nn = minOf(it.w, it.h, cols)
+                val fixedHex = hex && (it.key.startsWith("widget:") || it.key.startsWith("live:"))
+                val nn = if (fixedHex) 1 else minOf(it.w, it.h, cols)
                 val nw = if (hex) nn else minOf(it.w, cols)
                 val nh = if (hex) nn else it.h
                 it.copy(w = nw, h = nh, col = it.col.coerceIn(0, cols - nw))
@@ -658,7 +659,7 @@ fun StartScreen(
                     RoundBtn(Icons.Outlined.Settings, Color.Black, bx(rs.left), by(rs.bottom)) {
                         onOptions(tile)
                     }
-                    if (!tile.isHeader) {
+                    if (!tile.isHeader && !(hex && (tile.key.startsWith("widget:") || tile.key.startsWith("live:")))) {
                         RoundBtn(
                             Icons.Outlined.Fullscreen,
                             Color.Black,

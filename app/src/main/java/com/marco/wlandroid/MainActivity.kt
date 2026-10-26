@@ -877,7 +877,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         }
                     }
                 },
-                onDismiss = { showWidgetPicker = false }
+                onDismiss = { showWidgetPicker = false },
+                allowCustom = appearance != 1
             )
         }
     }
