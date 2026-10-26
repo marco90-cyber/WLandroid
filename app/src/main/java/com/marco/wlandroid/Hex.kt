@@ -33,6 +33,12 @@ data class HexShape(
     val rp: Float
 ) : Shape {
     fun path(): Path {
+        if (w > 1 || h > 1) {
+            // tile ingrandita: un unico grande esagono che riempie l'area della tile
+            val bw = w * cw + (if (h >= 2) cw / 2f else 0f)
+            val bh = (h - 1) * rp + hh
+            return hexPath(0f, 0f, bw, bh, 0.6f)
+        }
         val half = cw / 2f
         fun off(dr: Int) = if (((if (rowOdd) 1 else 0) + dr) % 2 == 1) half else 0f
         var minOff = Float.MAX_VALUE
