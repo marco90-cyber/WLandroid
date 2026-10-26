@@ -118,7 +118,25 @@ fun AppListScreen(
 
     Box(Modifier.fillMaxSize()) {
         val cell: @Composable (AppInfo) -> Unit = { app ->
-            Box {
+            // ingresso a cascata (turnstile) delle prime app quando si apre la lista
+            val idx = remember(app.key) { shown.indexOfFirst { it.key == app.key } }
+            val animIn = remember(app.key) { idx in 0..13 && !listState.isScrollInProgress && listState.firstVisibleItemIndex < 2 }
+            val ent = remember(app.key) { androidx.compose.animation.core.Animatable(if (animIn) 0f else 1f) }
+            androidx.compose.runtime.LaunchedEffect(app.key) {
+                if (animIn) {
+                    kotlinx.coroutines.delay(idx * 26L)
+                    ent.animateTo(1f, androidx.compose.animation.core.tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                }
+            }
+            Box(
+                Modifier.graphicsLayer {
+                    val e = ent.value
+                    alpha = e
+                    cameraDistance = 14f * this.density
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                    rotationY = (1f - e) * 55f
+                }
+            ) {
                 if (grid) {
                     Column(
                         Modifier

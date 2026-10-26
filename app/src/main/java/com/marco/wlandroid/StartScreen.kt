@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.gestures.awaitFirstDown
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,6 +113,7 @@ fun StartScreen(
     onPlusMenu: () -> Unit,
     fill: Boolean,
     tick: Int,
+    enterTick: Int = 0,
     corner: Int,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
@@ -138,6 +140,16 @@ fun StartScreen(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var openGroup by remember { mutableStateOf<String?>(null) }
     var expandedGroup by remember { mutableStateOf<String?>(null) }
+    val leave = remember { Animatable(0f) }
+    val leaveScope = androidx.compose.runtime.rememberCoroutineScope()
+    // all'uscita le tile ruotano via (turnstile) e poi parte l'app; al ritorno rientrano
+    val leaveThen: (() -> Unit) -> Unit = { action ->
+        leaveScope.launch {
+            leave.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
+            action()
+        }
+    }
+    LaunchedEffect(enterTick) { leave.snapTo(0f) }
     val cubeIndex = remember { mutableStateMapOf<String, Int>() }
     fun appsOf(key: String): List<AppInfo> =
         data.extra(key)?.optJSONArray("apps")?.let { a ->
@@ -330,6 +342,27 @@ fun StartScreen(
                             .border(1.dp, Color.White.copy(alpha = 0.35f))
                     )
                 }
+                // fascia della cartella aperta, dietro alle app del gruppo
+                run {
+                    val gxTiles = layout.filter { it.key.startsWith("gx|") }
+                    if (gxTiles.isNotEmpty()) {
+                        val first = rectIn(top, gxTiles.first())
+                        val last = rectIn(top, gxTiles.last())
+                        val bandTop = first.top - gapPx / 2f
+                        val bandH = (last.bottom + gapPx / 2f) - bandTop
+                        val bandAlpha by animateFloatAsState(1f, tween(300), label = "band")
+                        Box(
+                            Modifier
+                                .offset { IntOffset(0, bandTop.roundToInt()) }
+                                .size(with(density) { screenPx.toDp() }, with(density) { bandH.toDp() })
+                                .background(accent.copy(alpha = 0.22f * bandAlpha))
+                                .drawBehind {
+                                    drawRect(accent, Offset.Zero, androidx.compose.ui.geometry.Size(size.width, 3.dp.toPx()))
+                                    drawRect(accent, Offset(0f, size.height - 3.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 3.dp.toPx()))
+                                }
+                        )
+                    }
+                }
                 for (t in layout) {
                     key(t.key) {
                         val app = if (t.key.startsWith("gx|")) apps[t.key.substringAfterLast('|')] else apps[t.key]
@@ -356,8 +389,10 @@ fun StartScreen(
                         )
                         val enter = remember { Animatable(0f) }
                         val enterIdx = remember { layout.indexOfFirst { it.key == t.key } }
-                        LaunchedEffect(Unit) {
-                            delay((enterIdx.coerceAtLeast(0) * 28L).coerceAtMost(420L))
+                        val isGx = t.key.startsWith("gx|")
+                        LaunchedEffect(enterTick) {
+                            enter.snapTo(0f)
+                            delay(if (isGx) ((t.col + t.row) * 30L).coerceAtMost(240L) else (enterIdx.coerceAtLeast(0) * 28L).coerceAtMost(420L))
                             enter.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
                         }
                         val editScale by animateFloatAsState(
@@ -423,11 +458,11 @@ fun StartScreen(
                                     val k = t.key
                                     when {
                                         k == "sys:add" -> { if (!locked) onAddMenu() }
-                                        app != null -> onOpen(app)
-                                        k.startsWith("link:") -> onOpenLink(k)
-                                        k.startsWith("contact:") -> onOpenContact(k)
+                                        app != null -> leaveThen { onOpen(app) }
+                                        k.startsWith("link:") -> leaveThen { onOpenLink(k) }
+                                        k.startsWith("contact:") -> leaveThen { onOpenContact(k) }
                                         k.startsWith("cube:") ->
-                                            appsOf(k).getOrNull(cubeIndex[k] ?: 0)?.let { onOpen(it) }
+                                            appsOf(k).getOrNull(cubeIndex[k] ?: 0)?.let { a -> leaveThen { onOpen(a) } }
                                         k.startsWith("group:") -> expandedGroup = if (expandedGroup == k) null else k
                                         else -> onLiveClick(k)
                                     }
@@ -469,12 +504,17 @@ fun StartScreen(
                                         rotationX = -((lastPress.y - size.height / 2f) / (size.height / 2f)).coerceIn(-1f, 1f) * 9f * pk
                                     }
                                     val e = enter.value
-                                    if (e < 1f && size.width > 0f) {
+                                    val lv = (leave.value * 1.5f - enterIdx.coerceAtLeast(0) * 0.025f).coerceIn(0f, 1f)
+                                    if (isGx) {
+                                        // le app di un gruppo escono dalla cartella ingrandendosi
+                                        scaleX = sc * (0.55f + 0.45f * e)
+                                        scaleY = sc * (0.55f + 0.45f * e)
+                                    } else if ((e < 1f || lv > 0f) && size.width > 0f) {
                                         // le tile ruotano come una porta ancorata al bordo sinistro dello schermo
                                         transformOrigin = TransformOrigin(-r.left / size.width, 0.5f)
-                                        rotationY = (1f - e) * 62f
+                                        rotationY = (1f - e) * 62f + lv * 72f
                                     }
-                                    alpha = (if (dragging) 0.92f else 1f) * e.coerceIn(0f, 1f)
+                                    alpha = (if (dragging) 0.92f else 1f) * e.coerceIn(0f, 1f) * (1f - 0.9f * lv)
                                     shadowElevation = if (dragging) 24f else 0f
                                 }
                                 .clip(tshape)

@@ -524,6 +524,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         )
                     }
                     StartScreen(
+                        enterTick = resumeTick + homeTick,
                         tiles = tiles,
                         apps = appMap,
                         accent = accent,

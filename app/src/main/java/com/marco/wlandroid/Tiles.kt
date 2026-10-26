@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -595,22 +596,18 @@ fun GroupTile(
                         .size(minOf(maxWidth, maxHeight) * 0.5f)
                 )
             } else {
-                val areaH = maxHeight.value - (if (label) 16f else 0f) - 8f
-                val areaW = maxWidth.value - 8f
-                val n = apps.size.coerceAtLeast(1)
-                val s = (kotlin.math.sqrt((areaW * areaH) / n) * 0.82f).coerceIn(8f, 40f)
-                val gap = 3f
-                val cols = ((areaW + gap) / (s + gap)).toInt().coerceAtLeast(1)
-                val rowsFit = ((areaH + gap) / (s + gap)).toInt().coerceAtLeast(1)
+                // cartella stile Windows Phone: griglia 2x2 di mini icone
+                val side = minOf(maxWidth.value, maxHeight.value - (if (label) 14f else 0f)) * 0.68f
+                val mini = (side - 4f) / 2f
                 Column(
                     Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(gap.dp)
+                        .padding(top = ((maxHeight.value - (if (label) 14f else 0f) - side) / 2f).coerceAtLeast(2f).dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    apps.chunked(cols).take(rowsFit).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
-                            row.forEach { a -> Image(a.icon, a.label, Modifier.size(s.dp)) }
+                    apps.take(4).chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            row.forEach { a -> Image(a.icon, a.label, Modifier.size(mini.dp)) }
                         }
                     }
                 }
@@ -621,30 +618,25 @@ fun GroupTile(
                     color = Color.White,
                     fontSize = 11.sp,
                     maxLines = 1,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 3.dp, vertical = 2.dp)
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth(0.8f)
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
                 )
             }
         }
     }
-    if (expanded) {
-        Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
-                androidx.compose.material3.Icon(
-                    androidx.compose.material.icons.Icons.Outlined.KeyboardArrowDown,
-                    null,
-                    tint = Color.White,
-                    modifier = Modifier.size(34.dp)
-                )
-            }
-            content(Modifier.weight(1f).fillMaxSize())
-        }
-    } else {
+    Box(Modifier.fillMaxSize()) {
         content(Modifier.fillMaxSize())
+        androidx.compose.material3.Icon(
+            if (expanded) androidx.compose.material.icons.Icons.Outlined.KeyboardArrowUp
+            else androidx.compose.material.icons.Icons.Outlined.KeyboardArrowDown,
+            null,
+            tint = Color.White,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(22.dp)
+        )
     }
 }
 
