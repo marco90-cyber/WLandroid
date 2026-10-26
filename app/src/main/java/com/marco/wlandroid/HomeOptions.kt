@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -152,6 +153,8 @@ fun HomeOptionsScreen(
     onOrientation: (Int) -> Unit,
     appearance: Int,
     onAppearance: (Int) -> Unit,
+    hexCols: Int = 4,
+    onHexCols: (Int) -> Unit = {},
     appGrid: Boolean,
     onAppGrid: (Boolean) -> Unit,
     landscapeFill: Boolean,
@@ -309,6 +312,26 @@ fun HomeOptionsScreen(
                         }
                     }
                     Spacer(Modifier.height(12.dp))
+                    if (appearance == 1) {
+                        Text("Dimensione tile esagonali", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                        Column(Modifier.padding(horizontal = 24.dp)) {
+                            Text(
+                                when (hexCols) { 3 -> "Molto grandi"; 4 -> "Grandi"; 5 -> "Medie"; else -> "Piccole" },
+                                color = OptText, fontSize = 18.sp
+                            )
+                            Slider(
+                                value = (6 - hexCols).toFloat(),
+                                onValueChange = { onHexCols(6 - it.roundToInt().coerceIn(0, 3)) },
+                                valueRange = 0f..3f,
+                                steps = 2
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Piccole", color = OptSoft, fontSize = 13.sp)
+                                Text("Molto grandi", color = OptSoft, fontSize = 13.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Text("Effetto tile", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                     val cornerDp = if (rounded) listOf(8, 16, 28)[radius.coerceIn(0, 2)] else 0
                     Column(

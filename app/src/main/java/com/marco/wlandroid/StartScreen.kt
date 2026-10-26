@@ -103,6 +103,7 @@ fun StartScreen(
     onPlusMenu: () -> Unit,
     fill: Boolean,
     hex: Boolean,
+    hexCols: Int = 4,
     tick: Int,
     corner: Int,
     notifs: Map<String, NotifInfo>,
@@ -177,13 +178,16 @@ fun StartScreen(
         val shortSide = with(density) { minOf(ctx.resources.displayMetrics.widthPixels, ctx.resources.displayMetrics.heightPixels).toFloat() }
         val baseW = minOf(screenPx, shortSide)
         val cellPx = (baseW - 2 * padPx - (BASE_COLUMNS - 1) * gapPx) / BASE_COLUMNS
-        val hexCw = (baseW - 2 * padPx) / (BASE_COLUMNS + 0.5f)
+        val hexBase = hexCols.coerceIn(3, 6)
+        val hexCw = (baseW - 2 * padPx) / (hexBase + 0.5f)
         val hexHh = hexCw * 1.1547f
         val hexRp = hexCw * 0.866f
-        val cols = if (!fill) {
+        val cols = if (hex && !fill) {
+            hexBase
+        } else if (!fill) {
             BASE_COLUMNS
         } else if (hex) {
-            maxOf(BASE_COLUMNS, ((screenPx - 2 * padPx) / hexCw - 0.5f).toInt())
+            maxOf(hexBase, ((screenPx - 2 * padPx) / hexCw - 0.5f).toInt())
         } else {
             maxOf(BASE_COLUMNS, ((screenPx - 2 * padPx + gapPx) / (cellPx + gapPx)).toInt())
         }
@@ -532,14 +536,17 @@ fun StartScreen(
                                 .then(interaction)
                         ) {
                             val hexBig = hex && !t.isHeader && (t.w > 1 || t.h > 1)
+                            val hexSmall = hex && !t.isHeader && !hexBig
                             val kx = if (hexBig) 0.72f else 1f
                             val ky = if (hexBig) 0.56f else 1f
                             Box(
                                 Modifier
                                     .fillMaxSize()
                                     .padding(
-                                        horizontal = with(density) { (r.width * (1f - kx) / 2f).toDp() },
-                                        vertical = with(density) { (r.height * (1f - ky) / 2f).toDp() }
+                                        start = with(density) { (r.width * (1f - kx) / 2f).toDp() },
+                                        end = with(density) { (r.width * (1f - kx) / 2f).toDp() },
+                                        top = with(density) { (if (hexSmall) 0f else r.height * (1f - ky) / 2f).toDp() },
+                                        bottom = with(density) { (if (hexSmall) r.height * 0.17f else r.height * (1f - ky) / 2f).toDp() }
                                     )
                             ) {
                             when {

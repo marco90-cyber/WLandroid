@@ -327,6 +327,11 @@ class Store(ctx: Context) {
         get() = p.getInt("radius", 0)
         set(v) = p.edit().putInt("radius", v).apply()
 
+    /** colonne della griglia esagonale: meno colonne = tile più grandi */
+    var hexCols: Int
+        get() = p.getInt("hexCols", 4)
+        set(v) = p.edit().putInt("hexCols", v).apply()
+
     var weather: Weather?
         get() = parseWeather(p.getString("weather", null))
         set(v) = p.edit().putString("weather", v?.toJson()).apply()
