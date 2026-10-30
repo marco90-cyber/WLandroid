@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
@@ -370,6 +371,12 @@ fun HomeOptionsScreen(
                         color = OptText,
                         fontSize = 17.sp,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                    OptRow(
+                        Icons.Outlined.SystemUpdate,
+                        "Cerca aggiornamenti",
+                        "Scarica e installa la nuova versione",
+                        { AppUpdate.open(ctx) }
                     )
                 }
             }

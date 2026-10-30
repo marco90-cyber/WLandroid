@@ -80,7 +80,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         widgets = WidgetController(this)
         val store = Store(this)
-        setContent { WLApp(store, widgets, homeTick, resumeTick) }
+        setContent {
+            WLApp(store, widgets, homeTick, resumeTick)
+            androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
+                AppUpdateHost()
+            }
+        }
     }
 
     override fun onStart() {
@@ -649,7 +654,10 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onDismissRequest = { showInfo = false },
                 title = { Text("WLandroid") },
                 text = { Text("Versione $ver\nLauncher in stile Windows Phone") },
-                confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } }
+                confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
+                dismissButton = {
+                    TextButton(onClick = { showInfo = false; AppUpdate.open(ctx) }) { Text("Aggiornamenti") }
+                }
             )
         }
         if (showLayout) {
