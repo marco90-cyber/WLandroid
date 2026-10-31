@@ -374,14 +374,14 @@ fun HomeOptionsScreen(
                         OptLabel("Effetti")
                         OptSlider("Scurisci", if (fx.wallDim == 0) "No" else "${fx.wallDim}%", fx.wallDim.toFloat(), 0f..60f, 11) {
                             val v = (it / 5f).roundToInt() * 5
-                            if (v != fx.wallDim) fx.setWallDim(v)
+                            if (v != fx.wallDim) fx.updateWallDim(v)
                         }
                         OptSlider("Sfoca", if (fx.wallBlur == 0) "No" else "${fx.wallBlur} dp", fx.wallBlur.toFloat(), 0f..24f, 11) {
                             val v = (it / 2f).roundToInt() * 2
-                            if (v != fx.wallBlur) fx.setWallBlur(v)
+                            if (v != fx.wallBlur) fx.updateWallBlur(v)
                         }
-                        OptRow(Icons.Outlined.Gesture, "Parallasse", "Lo sfondo scorre piano quando cambi pagina", { fx.setWallParallax(!fx.wallParallax) }) {
-                            Switch(checked = fx.wallParallax, onCheckedChange = { fx.setWallParallax(it) })
+                        OptRow(Icons.Outlined.Gesture, "Parallasse", "Lo sfondo scorre piano quando cambi pagina", { fx.updateWallParallax(!fx.wallParallax) }) {
+                            Switch(checked = fx.wallParallax, onCheckedChange = { fx.updateWallParallax(it) })
                         }
                         Spacer(Modifier.height(8.dp))
                         OptLabel("Schermata di blocco")
@@ -404,7 +404,7 @@ fun HomeOptionsScreen(
                                     Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(18.dp))
-                                        .clickable { fx.setTileFx(id) }
+                                        .clickable { fx.updateTileFx(id) }
                                         .padding(vertical = 8.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
@@ -428,7 +428,7 @@ fun HomeOptionsScreen(
                             "${fx.fxStrength}%", fx.fxStrength.toFloat(), 0f..100f, 19
                         ) {
                             val v = (it / 5f).roundToInt() * 5
-                            if (v != fx.fxStrength) fx.setFxStrength(v)
+                            if (v != fx.fxStrength) fx.updateFxStrength(v)
                         }
                     }
                     Spacer(Modifier.height(8.dp))

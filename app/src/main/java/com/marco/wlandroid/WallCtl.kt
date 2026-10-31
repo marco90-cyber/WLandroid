@@ -32,11 +32,11 @@ class FxSettings(private val st: Store) {
     var fxStrength by mutableIntStateOf(st.fxStrength)
         private set
 
-    fun setWallDim(v: Int) { wallDim = v; st.wallDim = v }
-    fun setWallBlur(v: Int) { wallBlur = v; st.wallBlur = v }
-    fun setWallParallax(v: Boolean) { wallParallax = v; st.wallParallax = v }
-    fun setTileFx(v: Int) { tileFx = v; st.tileFx = v }
-    fun setFxStrength(v: Int) { fxStrength = v; st.fxStrength = v }
+    fun updateWallDim(v: Int) { wallDim = v; st.wallDim = v }
+    fun updateWallBlur(v: Int) { wallBlur = v; st.wallBlur = v }
+    fun updateWallParallax(v: Boolean) { wallParallax = v; st.wallParallax = v }
+    fun updateTileFx(v: Int) { tileFx = v; st.tileFx = v }
+    fun updateFxStrength(v: Int) { fxStrength = v; st.fxStrength = v }
 }
 
 /** Sfondo della Home: immagine, editor (ritaglio e colori), sfondi inclusi e importazione. */
