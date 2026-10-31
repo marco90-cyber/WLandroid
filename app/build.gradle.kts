@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.marco.wlandroid"
-        minSdk = 26
+        minSdk = 31
         targetSdk = 34
         // Numero di build di GitHub Actions: ogni versione è più nuova della precedente (aggiornamenti in app)
         val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()

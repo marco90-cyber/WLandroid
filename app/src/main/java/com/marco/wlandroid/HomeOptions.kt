@@ -44,6 +44,12 @@ import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -67,6 +73,53 @@ private val OptCircle @Composable get() = MaterialTheme.colorScheme.surfaceVaria
 private val OptText @Composable get() = MaterialTheme.colorScheme.onSurface
 private val OptSoft @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 private val OptAccent @Composable get() = MaterialTheme.colorScheme.primary
+
+@Composable
+private fun OptLabel(text: String) {
+    Text(text, color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+}
+
+@Composable
+private fun OptSlider(title: String, value: String, v: Float, range: ClosedFloatingPointRange<Float>, steps: Int, onChange: (Float) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = OptText, fontSize = 18.sp, modifier = Modifier.weight(1f))
+            Text(value, color = OptSoft, fontSize = 15.sp)
+        }
+        Slider(value = v, onValueChange = onChange, valueRange = range, steps = steps)
+    }
+}
+
+/** Piccola anteprima di un effetto delle tile, su sfondo o su un gradiente. */
+@Composable
+private fun FxPreview(effect: Int, strength: Float, accent: Color, wallBmp: ImageBitmap?, selected: Boolean) {
+    val shape = RoundedCornerShape(14.dp)
+    Box(
+        Modifier
+            .size(88.dp)
+            .clip(shape)
+            .border(if (selected) 3.dp else 1.dp, if (selected) OptAccent else MaterialTheme.colorScheme.outlineVariant, shape)
+    ) {
+        if (wallBmp != null) {
+            androidx.compose.foundation.Image(
+                wallBmp, null, Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Box(
+                Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1B2A49), Color(0xFF8E2DE2), Color(0xFFFF6A3D)))
+                )
+            )
+        }
+        val tileShape = RoundedCornerShape(8.dp)
+        Box(Modifier.align(Alignment.Center).size(56.dp).clip(tileShape)) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalWall provides null) {
+                TileFxLayer(effect, strength, accent, tileShape, 8.dp)
+            }
+        }
+    }
+}
 
 fun isDefaultHome(ctx: Context): Boolean = try {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -95,7 +148,7 @@ private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClic
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (GlassUi.on) 0.6f else 1f))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -114,6 +167,10 @@ private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClic
 
 @Composable
 fun HomeOptionsScreen(
+    startPage: String? = null,
+    fx: FxSettings,
+    wall: WallCtl,
+    onPickWall: () -> Unit,
     accent: Color,
     dark: Boolean,
     locked: Boolean,
@@ -138,7 +195,7 @@ fun HomeOptionsScreen(
     onReset: () -> Unit,
     onClose: () -> Unit
 ) {
-    var page by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableStateOf(startPage) }
     var orientDialog by remember { mutableStateOf(false) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     BackHandler(true) { if (page != null) page = null else onClose() }
@@ -146,6 +203,8 @@ fun HomeOptionsScreen(
         "ui" -> "Comportamento e interfaccia"
         "live" -> "Tile dinamica"
         "style" -> "Dimensioni e stile"
+        "wall" -> "Sfondo"
+        "fx" -> "Effetti tile"
         "gest" -> "Tasti e gesture"
         "apps" -> "Cassetto app"
         "info" -> "Informazioni"
@@ -193,7 +252,7 @@ fun HomeOptionsScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(OptBg)
+            .background(if (GlassUi.on) OptBg.copy(alpha = if (wall.bitmap != null) 0.5f else 0.9f) else OptBg)
             .statusBarsPadding()
             .navigationBarsPadding()
             .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
@@ -241,6 +300,8 @@ fun HomeOptionsScreen(
                     OptRow(Icons.Outlined.Tune, "Comportamento e interfaccia", null, { page = "ui" })
                     OptRow(Icons.Outlined.Notifications, "Tile dinamica", null, { page = "live" })
                     OptRow(Icons.Outlined.Palette, "Dimensioni e stile", null, { page = "style" })
+                    OptRow(Icons.Outlined.Wallpaper, "Sfondo", "Immagine, ritaglio, colori, parallasse", { page = "wall" })
+                    OptRow(Icons.Outlined.AutoAwesome, "Effetti tile", "Trasparenza, vetro, liquid glass e altri", { page = "fx" })
                     OptRow(Icons.Outlined.Apps, "Cassetto app", null, { page = "apps" })
                     OptRow(Icons.Outlined.Gesture, "Tasti e gesture", null, { page = "gest" })
                     OptRow(Icons.Outlined.Info, "Informazioni", null, { page = "info" })
@@ -266,6 +327,119 @@ fun HomeOptionsScreen(
                         "Serve alle tile Notifiche e ai badge sulle app",
                         onNotifAccess
                     )
+                }
+                "wall" -> {
+                    androidx.compose.runtime.LaunchedEffect(wall.error) {
+                        if (wall.error > 0) android.widget.Toast.makeText(
+                            ctx, "Immagine non disponibile. Android a volte non lascia leggere il suo sfondo: sceglilo dalla galleria",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    val bm = wall.bitmap
+                    if (bm != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        androidx.compose.foundation.Image(
+                            bm, contentDescription = "Sfondo attuale",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier
+                                .size(120.dp, 250.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OptLabel("Scegli l'immagine")
+                    if (bm != null) OptRow(Icons.Outlined.Tune, "Modifica lo sfondo attuale", "Ritaglia, ruota, regola luce e colori, filtri", { wall.editCurrent() })
+                    OptRow(Icons.Outlined.Wallpaper, if (wall.busy) "Preparo lo sfondo\u2026" else "Dalla galleria", "Una tua foto: poi la ritagli e la regoli", onPickWall)
+                    OptRow(Icons.Outlined.Palette, "Importa lo sfondo di Android", "Copia quello che hai adesso, se il sistema lo permette", { wall.importSystem() })
+                    if (bm != null) OptRow(Icons.Outlined.Delete, "Rimuovi sfondo", null, { wall.remove() })
+                    Spacer(Modifier.height(8.dp))
+                    OptLabel("Sfondi inclusi")
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        BUILTIN_WALLS.forEach { (k, l) ->
+                            val thumb = remember(k) { builtinWall(k, 90, 180).asImageBitmap() }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { wall.builtin(k) }) {
+                                androidx.compose.foundation.Image(
+                                    thumb, contentDescription = l,
+                                    modifier = Modifier.size(60.dp, 120.dp).clip(RoundedCornerShape(14.dp))
+                                )
+                                Text(l, color = OptSoft, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
+                    }
+                    if (bm != null) {
+                        Spacer(Modifier.height(12.dp))
+                        OptLabel("Effetti")
+                        OptSlider("Scurisci", if (fx.wallDim == 0) "No" else "${fx.wallDim}%", fx.wallDim.toFloat(), 0f..60f, 11) {
+                            val v = (it / 5f).roundToInt() * 5
+                            if (v != fx.wallDim) fx.setWallDim(v)
+                        }
+                        OptSlider("Sfoca", if (fx.wallBlur == 0) "No" else "${fx.wallBlur} dp", fx.wallBlur.toFloat(), 0f..24f, 11) {
+                            val v = (it / 2f).roundToInt() * 2
+                            if (v != fx.wallBlur) fx.setWallBlur(v)
+                        }
+                        OptRow(Icons.Outlined.Gesture, "Parallasse", "Lo sfondo scorre piano quando cambi pagina", { fx.setWallParallax(!fx.wallParallax) }) {
+                            Switch(checked = fx.wallParallax, onCheckedChange = { fx.setWallParallax(it) })
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OptLabel("Schermata di blocco")
+                        OptRow(
+                            Icons.Outlined.Lock, "Usa anche sulla schermata di blocco",
+                            "Imposta questa immagine come sfondo di blocco di Android",
+                            {
+                                val ok = wall.toLockScreen()
+                                android.widget.Toast.makeText(ctx, if (ok) "Sfondo di blocco impostato" else "Non riuscito", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
+                "fx" -> {
+                    OptLabel("Effetto")
+                    Fx.NAMES.chunked(3).forEach { row ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                            row.forEach { (id, name) ->
+                                Column(
+                                    Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .clickable { fx.setTileFx(id) }
+                                        .padding(vertical = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    FxPreview(id, fx.fxStrength / 100f, accent, wall.bitmap, fx.tileFx == id)
+                                    Text(
+                                        name,
+                                        color = if (fx.tileFx == id) OptAccent else OptText,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (fx.tileFx == id) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (fx.tileFx != Fx.NONE) {
+                        Spacer(Modifier.height(8.dp))
+                        OptSlider(
+                            if (Fx.glassy(fx.tileFx)) "Trasparenza e sfocatura" else "Intensità",
+                            "${fx.fxStrength}%", fx.fxStrength.toFloat(), 0f..100f, 19
+                        ) {
+                            val v = (it / 5f).roundToInt() * 5
+                            if (v != fx.fxStrength) fx.setFxStrength(v)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "L'effetto vale per tutte le tile colorate. Trasparente, Vetro smerigliato e Liquid Glass danno il vetro anche alla barra della lista app e alle finestre, e si vedono meglio con uno sfondo.",
+                        color = OptSoft, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    if (wall.bitmap == null && Fx.glassy(fx.tileFx)) {
+                        Spacer(Modifier.height(8.dp))
+                        OptRow(Icons.Outlined.Wallpaper, "Scegli uno sfondo", "Senza sfondo il vetro è solo una trasparenza", { page = "wall" })
+                    }
                 }
                 "style" -> {
                     Text("Effetto tile", color = OptAccent, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))

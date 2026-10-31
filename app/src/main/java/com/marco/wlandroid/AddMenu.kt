@@ -85,13 +85,33 @@ internal fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable Co
                 .padding(horizontal = 18.dp, vertical = 24.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
+            val glassUi = GlassUi.on
+            val view = androidx.compose.ui.platform.LocalView.current
+            androidx.compose.runtime.SideEffect {
+                if (glassUi) try {
+                    // sfocatura reale di quello che sta dietro la finestra (se il telefono la permette)
+                    val win = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+                    if (win != null) {
+                        win.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                        val lp = win.attributes
+                        lp.blurBehindRadius = 36
+                        win.attributes = lp
+                    }
+                } catch (e: Throwable) {
+                }
+            }
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = SheetBg,
+                color = if (glassUi) Color.Transparent else SheetBg,
                 modifier = Modifier
                     .fillMaxWidth()
                     .pointerInput(Unit) { detectTapGestures { } }
             ) {
+              Box {
+                if (glassUi) GlassLayer(
+                    28.dp, RoundedCornerShape(28.dp), Modifier.matchParentSize(),
+                    tint = SheetBg, tintAlpha = 0.55f, lens = false, veil = 0f
+                )
                 Column(
                     Modifier
                         .verticalScroll(rememberScrollState())
@@ -118,6 +138,7 @@ internal fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable Co
                     Spacer(Modifier.height(8.dp))
                     content()
                 }
+              }
             }
         }
     }

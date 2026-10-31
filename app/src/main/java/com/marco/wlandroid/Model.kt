@@ -313,6 +313,27 @@ class Store(ctx: Context) {
         get() = p.getBoolean("appGrid", false)
         set(v) = p.edit().putBoolean("appGrid", v).apply()
 
+    var wallDim: Int
+        get() = p.getInt("wallDim", 0)
+        set(v) = p.edit().putInt("wallDim", v).apply()
+
+    var wallBlur: Int
+        get() = p.getInt("wallBlur", 0)
+        set(v) = p.edit().putInt("wallBlur", v).apply()
+
+    var wallParallax: Boolean
+        get() = p.getBoolean("wallParallax", true)
+        set(v) = p.edit().putBoolean("wallParallax", v).apply()
+
+    /** effetto delle tile (vedi Fx) */
+    var tileFx: Int
+        get() = p.getInt("tileFx", 0)
+        set(v) = p.edit().putInt("tileFx", v).apply()
+
+    var fxStrength: Int
+        get() = p.getInt("fxStrength", 50)
+        set(v) = p.edit().putInt("fxStrength", v).apply()
+
     /** angoli arrotondati delle tile */
     var rounded: Boolean
         get() = p.getBoolean("rounded", false)

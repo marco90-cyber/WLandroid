@@ -114,6 +114,8 @@ fun StartScreen(
     fill: Boolean,
     tick: Int,
     enterTick: Int = 0,
+    fx: Int = 0,
+    fxStrength: Float = 0.5f,
     corner: Int,
     notifs: Map<String, NotifInfo>,
     notifConnected: Boolean,
@@ -475,6 +477,7 @@ fun StartScreen(
                         }
 
                         val tshape: Shape = shape
+                        val fxOn = fx != Fx.NONE && !t.isHeader && t.key != ADD_KEY && !(expActive && expandedGroup == t.key)
                         val bg = t.color?.let { Color(it) } ?: if (t.isHeader) Color(0xFF2E2E2E) else if (t.key == ADD_KEY) (if (locked) Color.Transparent else Color.Black) else if (expActive && expandedGroup == t.key) Color.Transparent else accent
 
                         Box(
@@ -518,10 +521,11 @@ fun StartScreen(
                                     shadowElevation = if (dragging) 24f else 0f
                                 }
                                 .clip(tshape)
-                                .background(bg)
+                                .then(if (fxOn) Modifier else Modifier.background(bg))
                                 .then(tilt)
                                 .then(interaction)
                         ) {
+                            if (fxOn) TileFxLayer(fx, fxStrength, bg, tshape, corner.dp)
                             when {
                                 t.isHeader -> HeaderLabel(headerName(t.key))
                                 t.key == "sys:add" -> if (!locked) AddTile(t.size, corner)

@@ -75,7 +75,8 @@ fun AppListScreen(
     onPin: (AppInfo) -> Unit,
     grid: Boolean,
     onGrid: (Boolean) -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    glass: Boolean = false
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var menuFor by remember { mutableStateOf<String?>(null) }
@@ -357,7 +358,7 @@ fun AppListScreen(
             }
         }
 
-        Row(
+        Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .imePadding()
@@ -365,9 +366,13 @@ fun AppListScreen(
                 .fillMaxWidth()
                 .height(56.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
-                .background(barBg),
-            verticalAlignment = Alignment.CenterVertically
+                .then(if (glass) Modifier else Modifier.background(barBg))
         ) {
+        if (glass) GlassLayer(
+            28.dp, androidx.compose.foundation.shape.RoundedCornerShape(28.dp), Modifier.matchParentSize(),
+            tint = barBg, tintAlpha = 0.35f, lens = false, veil = 0f
+        )
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             if (searching) {
                 Box(
                     Modifier
@@ -453,6 +458,7 @@ fun AppListScreen(
                 }
                 Spacer(Modifier.width(8.dp))
             }
+        }
         }
     }
 }

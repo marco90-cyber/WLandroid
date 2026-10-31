@@ -53,6 +53,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -143,8 +146,12 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     var radius by remember { mutableIntStateOf(store.radius) }
     var pinchOn by remember { mutableStateOf(store.pinch) }
     var showLayout by remember { mutableStateOf(false) }
-    var showWallpaper by remember { mutableStateOf(false) }
-    var wall by remember { mutableStateOf(data.bitmap(WALL_FILE)) }
+    var settingsPage by remember { mutableStateOf<String?>(null) }
+    val wallCtl = remember { WallCtl(ctx, scope) }
+    val fxs = remember { FxSettings(store) }
+    LaunchedEffect(Unit) { wallCtl.load() }
+    GlassUi.on = Fx.glassy(fxs.tileFx)
+    GlassUi.darkText = wallCtl.darkText
     var showSettings by remember { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
@@ -186,15 +193,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
     }
 
     val wallPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val bmp = withContext(Dispatchers.IO) { loadWallpaperBitmap(ctx, uri) }
-                if (bmp != null) {
-                    data.saveBitmap(WALL_FILE, bmp)
-                    wall = data.bitmap(WALL_FILE)
-                }
-            }
-        }
+        if (uri != null) wallCtl.picked(uri)
     }
 
     fun editExtra(k: String, block: (JSONObject) -> Unit) {
@@ -521,15 +520,21 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     }
               ) {
                 if (page == 0) {
-                  Box(Modifier.fillMaxSize()) {
-                    wall?.let {
-                        androidx.compose.foundation.Image(
-                            it, null, Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    }
+                  androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                  val wr = wallCtl.bitmap?.let { bm ->
+                      remember(bm, constraints.maxWidth, constraints.maxHeight, fxs.wallParallax) {
+                          WallRender(bm, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat(), fxs.wallParallax) {
+                              pager.currentPage + pager.currentPageOffsetFraction
+                          }
+                      }
+                  }
+                  androidx.compose.runtime.CompositionLocalProvider(LocalWall provides wr) {
+                  Box(Modifier.fillMaxSize().onGloballyPositioned { c -> wr?.origin = c.positionInRoot() }) {
+                    if (wr != null) WallpaperLayer(wr, fxs.wallDim / 100f, fxs.wallBlur.dp)
                     StartScreen(
                         enterTick = resumeTick + homeTick,
+                        fx = fxs.tileFx,
+                        fxStrength = fxs.fxStrength / 100f,
                         tiles = tiles,
                         apps = appMap,
                         accent = accent,
@@ -579,6 +584,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         onAddMenu = { showAddMenu = true }
                     )
                   }
+                  }
+                  }
                 } else {
                     AppListScreen(
                         apps = apps,
@@ -588,7 +595,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                         onPin = { pin(it) },
                         grid = appGrid,
                         onGrid = { appGrid = it; store.appGrid = it },
-                        onSettings = { showSettings = true }
+                        onSettings = { showSettings = true },
+                        glass = Fx.glassy(fxs.tileFx)
                     )
                 }
               }
@@ -631,7 +639,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 locked = locked,
                 onOptions = { showMenu = false; showSettings = true },
                 onSystem = { showMenu = false; openSettings(ctx, Settings.ACTION_SETTINGS) },
-                onWallpaper = { showMenu = false; showWallpaper = true },
+                onWallpaper = { showMenu = false; settingsPage = "wall"; showSettings = true },
                 onLock = {
                     showMenu = false
                     locked = !locked
@@ -664,7 +672,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             LayoutOverview(
                 tiles = tiles,
                 accent = accent,
-                wallpaper = wall,
+                wallpaper = wallCtl.bitmap,
                 locked = locked,
                 onClose = { showLayout = false },
                 onApps = {
@@ -672,7 +680,7 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                     scope.launch { pager.animateScrollToPage(1) }
                 },
                 onOptions = { showSettings = true },
-                onWallpaper = { showWallpaper = true },
+                onWallpaper = { showLayout = false; settingsPage = "wall"; showSettings = true },
                 onToggleLock = {
                     locked = !locked
                     store.locked = locked
@@ -682,31 +690,24 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onTheme = { showSettings = true }
             )
         }
-        if (showWallpaper) {
-            WallpaperDialog(
-                hasWallpaper = wall != null,
-                onPick = {
-                    showWallpaper = false
-                    try {
-                        wallPicker.launch("image/*")
-                    } catch (e: Exception) {
-                    }
-                },
-                onRemove = {
-                    showWallpaper = false
-                    data.removeFile(WALL_FILE)
-                    wall = null
-                },
-                onDismiss = { showWallpaper = false }
-            )
-        }
         if (showSettings) {
+          Box(Modifier.fillMaxSize()) {
+            if (GlassUi.on) wallCtl.bitmap?.let {
+                androidx.compose.foundation.Image(
+                    it, null, Modifier.fillMaxSize().blur(28.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            }
             MaterialTheme(
                 colorScheme = if (android.os.Build.VERSION.SDK_INT >= 31) {
                     if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
                 } else if (dark) darkColorScheme() else lightColorScheme()
             ) {
             HomeOptionsScreen(
+                startPage = settingsPage,
+                fx = fxs,
+                wall = wallCtl,
+                onPickWall = { try { wallPicker.launch("image/*") } catch (e: Exception) { } },
                 accent = accent,
                 dark = dark,
                 locked = locked,
@@ -729,10 +730,13 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 onSetDefault = { chooseDefaultHome(ctx) },
                 onNotifAccess = { openNotifAccess() },
                 onReset = { showSettings = false; showResetConfirm = true },
-                onClose = { showSettings = false }
+                onClose = { showSettings = false; settingsPage = null }
             )
             }
+          }
+          wallCtl.editSrc?.let { WallEditor(wallCtl, it) }
         }
+        if (!showSettings) wallCtl.editSrc?.let { WallEditor(wallCtl, it) }
         optionsTarget?.let { k ->
           if (k.startsWith("group:")) {
             GroupOptionsDialog(
