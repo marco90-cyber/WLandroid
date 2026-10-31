@@ -734,9 +734,9 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
             )
             }
           }
-          wallCtl.editSrc?.let { WallEditor(wallCtl, it) }
+          wallCtl.editSrc?.let { WallpaperEditor(wallCtl, it) }
         }
-        if (!showSettings) wallCtl.editSrc?.let { WallEditor(wallCtl, it) }
+        if (!showSettings) wallCtl.editSrc?.let { WallpaperEditor(wallCtl, it) }
         optionsTarget?.let { k ->
           if (k.startsWith("group:")) {
             GroupOptionsDialog(
