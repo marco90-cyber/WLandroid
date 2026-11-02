@@ -498,7 +498,7 @@ fun SettingsDialog(
                 Spacer(Modifier.size(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Tema scuro", Modifier.weight(1f))
-                    Switch(checked = dark, onCheckedChange = onDark)
+                    WSwitch(checked = dark, onCheckedChange = onDark)
                 }
                 Spacer(Modifier.size(8.dp))
                 TextButton(onClick = onNotifAccess) { Text("Accesso alle notifiche") }

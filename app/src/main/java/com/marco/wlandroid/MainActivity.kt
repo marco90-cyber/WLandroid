@@ -699,9 +699,8 @@ fun WLApp(store: Store, widgets: WidgetController, homeTick: Int, resumeTick: In
                 )
             }
             MaterialTheme(
-                colorScheme = if (android.os.Build.VERSION.SDK_INT >= 31) {
-                    if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-                } else if (dark) darkColorScheme() else lightColorScheme()
+                // impostazioni con i colori di MLTheme, come in MLauncher
+                colorScheme = com.marco.mltheme.mlColorScheme(if (dark) "dark" else "light", com.marco.mltheme.MLThemeSettings.get(ctx).accent)
             ) {
             HomeOptionsScreen(
                 startPage = settingsPage,

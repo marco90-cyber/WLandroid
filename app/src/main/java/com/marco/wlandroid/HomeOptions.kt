@@ -142,7 +142,7 @@ fun chooseDefaultHome(ctx: Context) {
 }
 
 @Composable
-private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClick: () -> Unit, trailing: @Composable () -> Unit = {}) {
+private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClick: () -> Unit, trailing: @Composable () -> Unit = { com.marco.mltheme.MLChevron() }) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -162,6 +162,30 @@ private fun OptRow(icon: ImageVector, label: String, sub: String? = null, onClic
             if (sub != null) Text(sub, color = OptSoft, fontSize = 13.sp)
         }
         trailing()
+    }
+}
+
+/** Interruttore nello stile scelto (MLTheme). */
+@Composable
+internal fun WSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    com.marco.mltheme.MLSwitch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        style = com.marco.mltheme.MLThemeSettings.get(androidx.compose.ui.platform.LocalContext.current).switchStyle,
+    )
+}
+
+/** Riga di scelta di MLTheme con la stessa forma delle altre voci. */
+@Composable
+private fun MLChoiceOpt(
+    title: String,
+    options: List<Pair<String, String>>,
+    current: String,
+    preview: @Composable (String) -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    Box(Modifier.padding(horizontal = 12.dp, vertical = 2.dp).clip(RoundedCornerShape(24.dp))) {
+        com.marco.mltheme.MLChoiceRow(title, options, current, preview = preview, onSelect = onSelect)
     }
 }
 
@@ -308,7 +332,14 @@ fun HomeOptionsScreen(
                 }
                 "ui" -> {
                     OptRow(Icons.Outlined.DarkMode, "Tema scuro", null, { onDark(!dark) }) {
-                        Switch(checked = dark, onCheckedChange = onDark)
+                        WSwitch(checked = dark, onCheckedChange = onDark)
+                    }
+                    val ml = com.marco.mltheme.MLThemeSettings.get(androidx.compose.ui.platform.LocalContext.current)
+                    MLChoiceOpt("Colori delle impostazioni", com.marco.mltheme.availableAccents, ml.accent, { com.marco.mltheme.AccentPreview(it) }) {
+                        ml.accent = it
+                    }
+                    MLChoiceOpt("Stile degli interruttori", com.marco.mltheme.SWITCH_STYLES, ml.switchStyle, { com.marco.mltheme.SwitchStylePreview(it) }) {
+                        ml.switchStyle = it
                     }
                     OptRow(
                         Icons.Outlined.ScreenRotation,
@@ -317,7 +348,7 @@ fun HomeOptionsScreen(
                         { orientDialog = true }
                     )
                     OptRow(Icons.Outlined.Lock, "Blocca layout", "Impedisce di modificare le tile", { onLocked(!locked) }) {
-                        Switch(checked = locked, onCheckedChange = onLocked)
+                        WSwitch(checked = locked, onCheckedChange = onLocked)
                     }
                 }
                 "live" -> {
@@ -381,7 +412,7 @@ fun HomeOptionsScreen(
                             if (v != fx.wallBlur) fx.updateWallBlur(v)
                         }
                         OptRow(Icons.Outlined.Gesture, "Parallasse", "Lo sfondo scorre piano quando cambi pagina", { fx.updateWallParallax(!fx.wallParallax) }) {
-                            Switch(checked = fx.wallParallax, onCheckedChange = { fx.updateWallParallax(it) })
+                            WSwitch(checked = fx.wallParallax, onCheckedChange = { fx.updateWallParallax(it) })
                         }
                         Spacer(Modifier.height(8.dp))
                         OptLabel("Schermata di blocco")
@@ -468,7 +499,7 @@ fun HomeOptionsScreen(
                         Column {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Arrotondato", color = OptText, fontSize = 20.sp, modifier = Modifier.weight(1f))
-                            Switch(checked = rounded, onCheckedChange = onRounded)
+                            WSwitch(checked = rounded, onCheckedChange = onRounded)
                         }
                         if (rounded) {
                             Spacer(Modifier.height(16.dp))
@@ -532,7 +563,7 @@ fun HomeOptionsScreen(
                         "Pizzico per il Layout",
                         "Avvicina due dita sulla Start",
                         { onPinch(!pinch) }
-                    ) { Switch(checked = pinch, onCheckedChange = onPinch) }
+                    ) { WSwitch(checked = pinch, onCheckedChange = onPinch) }
                 }
                 "info" -> {
                     val ver = try {
